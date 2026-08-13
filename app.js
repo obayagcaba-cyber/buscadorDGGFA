@@ -1077,13 +1077,15 @@
       { fn: antiguedad, rotulo: 'Antigüedad', orden: TRAMOS_ANTIGUEDAD },
       { clave: 'tipoCombustible', rotulo: 'Combustible' }
     ];
-    // En la vista general, mirar la flota por secretaría es tan útil como
-    // por ministerio, así que se ofrece además del desglose de abajo.
-    if (config.general && HAY_JERARQUIA) {
-      dimensiones.splice(3, 0, { clave: 'secretaria', rotulo: 'Secretaría' });
-    }
-    if (config.desglose) {
-      dimensiones.splice(2, 0, { clave: config.desglose.clave, rotulo: config.desglose.rotulo });
+    /* Dimensión organizacional del anillo. En una vista de organismo es la
+       repartición: la secretaría ya la desglosa el cuadro de abajo, y como
+       ese desglose se calcula con una función y no con una columna, acá
+       terminaba agrupando todo en "Sin dato". En la vista general la
+       repartición no dice nada (son 248), así que va el ministerio. */
+    if (config.general) {
+      dimensiones.splice(2, 0, { clave: 'ministerio', rotulo: 'Ministerio' });
+    } else if (config.desglose) {
+      dimensiones.splice(2, 0, { clave: 'reparticion', rotulo: 'Repartición' });
     }
     cuadroGrafico(cont, filas, dimensiones);
 
