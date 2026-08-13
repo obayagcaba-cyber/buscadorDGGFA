@@ -343,9 +343,11 @@
   function activo(fila, clave) { return !esVacio(celda(fila, clave)); }
   function esTipo(fila, tipo) { return celda(fila, 'tipo') === tipo; }
 
-  function tabla(contenedor, encabezados, filas, pie) {
+  // clase: 'por-tipo' cuando la primera columna lista tipos de vehículo,
+  // que van siempre en mayúscula.
+  function tabla(contenedor, encabezados, filas, pie, clase) {
     var marco = crear('div', 'marco-tabla');
-    var t = crear('table');
+    var t = crear('table', clase || null);
 
     var thead = crear('thead');
     var tr = crear('tr');
@@ -411,7 +413,7 @@
       'El total de flota incluye unidades contabilizadas doble por poseer el mismo servicio.'));
 
     // --- Unidades por tipo
-    cont.appendChild(crear('h3', 'subtitulo-tabla', 'Unidades por tipo de vehículo'));
+    cont.appendChild(crear('h3', 'subtitulo-tabla principal', 'Unidades por tipo de vehículo'));
     var porTipo = TIPOS.map(function (tipo) {
       return [
         tipo,
@@ -424,7 +426,8 @@
     tabla(cont,
       ['Tipo', 'Total', 'Póliza DGGFA', 'Anticuación', 'Inst. Patrimonial'],
       porTipo,
-      ['TOTAL'].concat(sumaColumnas(porTipo).slice(1)));
+      ['TOTAL'].concat(sumaColumnas(porTipo).slice(1)),
+      'por-tipo');
 
     // --- Servicios por tipo
     cont.appendChild(crear('h3', 'subtitulo-tabla', 'Servicios por tipo de vehículo'));
@@ -442,7 +445,8 @@
     tabla(cont,
       ['Tipo', 'Combustible', 'Telemetría', 'Mantenimiento', 'Los 3 servicios'],
       porServicio,
-      ['TOTAL'].concat(sumaColumnas(porServicio).slice(1)));
+      ['TOTAL'].concat(sumaColumnas(porServicio).slice(1)),
+      'por-tipo');
     cont.appendChild(crear('p', 'nota',
       'Combustible incluye las ' +
       miles(contar(function (f) { return celda(f, 'combustible').toUpperCase() === 'ELÉCTRICO'; })) +
@@ -464,7 +468,8 @@
     tabla(cont,
       ['Tipo', 'Hasta 50.000 km', 'De 50.000 a 100.000', 'Más de 100.000', 'Total'],
       porKm,
-      ['TOTAL'].concat(sumaColumnas(porKm).slice(1)));
+      ['TOTAL'].concat(sumaColumnas(porKm).slice(1)),
+      'por-tipo');
     cont.appendChild(crear('p', 'nota',
       'Solo se cuentan las unidades con kilometraje cargado (' +
       miles(contar(function (f) { return aNumero(celda(f, 'km')) !== null; })) + ' de ' + miles(totalFlota) + ').'));
