@@ -191,12 +191,18 @@
       sec.appendChild(h3);
 
       var dl = crear('dl', 'datos');
+      var ajustes = (D.correcciones || {})[celda(fila, 'patente')] || {};
+
       bloque.campos.forEach(function (campo) {
         var v = valorMostrable(fila, campo);
         var caja = crear('div', 'dato');
         caja.appendChild(crear('dt', null, campo.rotulo));
         var dd = crear('dd', v.clase || null, v.texto);
         if (v.nota) { dd.appendChild(crear('span', 'nota-dato', v.nota)); }
+        // Dato ajustado por la DGGFA: se muestra corregido y se dice por qué.
+        if (ajustes[campo.clave]) {
+          dd.appendChild(crear('span', 'nota-dato ajustado', ajustes[campo.clave]));
+        }
         caja.appendChild(dd);
         dl.appendChild(caja);
       });
@@ -429,11 +435,18 @@
         contar(function (f) { return esTipo(f, tipo) && marcada(f, 'patrimonial'); })
       ];
     });
+    // Aviso de trazabilidad: si la DGGFA ajustó datos respecto de la planilla,
+    // el cuadro lo dice en vez de mostrar un número sin explicación.
+    var ajustadas = Object.keys(D.correcciones || {}).length;
     cuadro(cont, 'Unidades por tipo de vehículo',
       ['Tipo', 'Total', 'Póliza DGGFA', 'Anticuación', 'Inst. Patrimonial'],
       porTipo,
       ['TOTAL'].concat(sumaColumnas(porTipo).slice(1)),
-      { principal: true });
+      { principal: true,
+        nota: ajustadas
+          ? 'Incluye ' + miles(ajustadas) + ' unidades con datos ajustados por la DGGFA ' +
+            'respecto de la planilla de origen. El motivo figura en la ficha de cada unidad.'
+          : null });
 
     // --- Servicios por tipo
     var porServicio = TIPOS.map(function (tipo) {
