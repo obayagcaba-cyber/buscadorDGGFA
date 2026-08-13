@@ -55,9 +55,14 @@
     return 'Depende directo del Ministerio';
   }
 
-  var DESGLOSE_REPARTICION = { clave: 'reparticion', titulo: 'Unidades por Repartición', rotulo: 'Repartición' };
-  var DESGLOSE_DEPENDENCIA = { fn: dependencia, titulo: 'Unidades por Secretaría / Subsecretaría', rotulo: 'Secretaría / Subsecretaría' };
-  var DESGLOSE_SUBSECRETARIA = { clave: 'subsecretaria', titulo: 'Unidades por Subsecretaría', rotulo: 'Subsecretaría' };
+  // Cada desglose define qué se abre adentro: el escalón siguiente de la
+  // cadena. El último nivel se abre en las marcas de sus unidades.
+  var SUB_REPARTICION = { clave: 'reparticion', plural: 'reparticiones', vacio: 'Sin repartición' };
+  var SUB_MARCA = { clave: 'marca', plural: 'marcas', vacio: 'Sin marca' };
+
+  var DESGLOSE_REPARTICION = { clave: 'reparticion', titulo: 'Unidades por Repartición', rotulo: 'Repartición', plural: 'reparticiones', hijo: SUB_MARCA };
+  var DESGLOSE_DEPENDENCIA = { fn: dependencia, titulo: 'Unidades por Secretaría / Subsecretaría', rotulo: 'Secretaría / Subsecretaría', plural: 'secretarías o subsecretarías', hijo: SUB_REPARTICION };
+  var DESGLOSE_SUBSECRETARIA = { clave: 'subsecretaria', titulo: 'Unidades por Subsecretaría', rotulo: 'Subsecretaría', plural: 'subsecretarías', hijo: SUB_REPARTICION };
 
   // Cada nivel de la cadena es buscable y se desglosa en el siguiente:
   // ministerio > secretaría > subsecretaría > repartición > unidad.
@@ -785,91 +790,118 @@
      abre para mostrar sus modelos. Arranca cerrado. */
   var SEP = '\u0001';   // separador que no puede aparecer dentro de un dato
 
-  function cuadroDetalle(cont, filas, total) {
-    var marcas = {};
+  /* Lista plegable genérica: una línea por grupo, con la proporción de fondo,
+     y adentro el nivel siguiente. La usan el desglose por organismo y el
+     detalle de unidades, que son el mismo gesto sobre datos distintos.
+
+     padre : {fn|clave, vacio}          qué encabeza cada línea
+     hijo  : {fn}  -> [texto, apostilla]  qué aparece al abrirla (opcional)
+     resumen(nPadres, nHijos) -> texto de la barra superior              */
+  function cuadroPlegable(cont, opciones) {
+    var filas = opciones.filas;
+    var total = opciones.total;
+    var padre = opciones.padre;
+    var hijo = opciones.hijo;
+
+    var grupos = {};
     filas.forEach(function (f) {
-      var marca = celda(f, 'marca');
-      var modelo = celda(f, 'modelo');
-      var anio = celda(f, 'anio');
-      marca = esVacio(marca) ? 'Sin marca' : marca;
-      if (!marcas[marca]) { marcas[marca] = { total: 0, modelos: {} }; }
-      marcas[marca].total++;
-      var k = (esVacio(modelo) ? SIN_DATO : modelo) + SEP + (esVacio(anio) ? SIN_DATO : anio);
-      marcas[marca].modelos[k] = (marcas[marca].modelos[k] || 0) + 1;
+      var nombre = padre.fn ? padre.fn(f) : celda(f, padre.clave);
+      if (esVacio(nombre)) {
+        if (!padre.vacio) { return; }
+        nombre = padre.vacio;
+      }
+      if (!grupos[nombre]) { grupos[nombre] = { total: 0, hijos: {} }; }
+      grupos[nombre].total++;
+      if (hijo) {
+        var par = hijo.fn(f);
+        var k = par[0] + SEP + (par[1] || '');
+        grupos[nombre].hijos[k] = (grupos[nombre].hijos[k] || 0) + 1;
+      }
     });
 
-    var lista = Object.keys(marcas)
-      .map(function (m) { return { marca: m, datos: marcas[m] }; })
+    var lista = Object.keys(grupos)
+      .map(function (n) { return { nombre: n, datos: grupos[n] }; })
       .sort(function (a, b) { return b.datos.total - a.datos.total; });
 
-    // Modelos distintos, no combinaciones: un mismo modelo en tres años es
-    // un modelo, aunque adentro se abra en tres líneas.
-    var modelosDistintos = lista.reduce(function (t, x) {
+    if (!lista.length) { return; }
+
+    // Hijos distintos por su texto principal: un mismo modelo en tres años
+    // es un modelo, aunque adentro se abra en tres líneas.
+    var hijosDistintos = lista.reduce(function (t, x) {
       var vistos = {};
-      Object.keys(x.datos.modelos).forEach(function (k) { vistos[k.split(SEP)[0]] = 1; });
+      Object.keys(x.datos.hijos).forEach(function (k) { vistos[k.split(SEP)[0]] = 1; });
       return t + Object.keys(vistos).length;
     }, 0);
 
+    var enGrupos = lista.reduce(function (t, x) { return t + x.datos.total; }, 0);
+
     var sec = crear('section', 'cuadro');
-    sec.appendChild(crear('h3', 'titulo-cuadro', 'Detalle de unidades'));
+    sec.appendChild(crear('h3', 'titulo-cuadro', opciones.titulo));
 
     var caja = crear('div', 'detalle');
 
     var barra = crear('div', 'detalle-barra');
     barra.appendChild(crear('span', 'detalle-resumen',
-      miles(lista.length) + (lista.length === 1 ? ' marca' : ' marcas') + '  ·  ' +
-      miles(modelosDistintos) + (modelosDistintos === 1 ? ' modelo' : ' modelos')));
-    var alternar = crear('button', 'chip-dim', 'Abrir todo');
-    alternar.type = 'button';
-    barra.appendChild(alternar);
+      opciones.resumen(lista.length, hijosDistintos)));
+    var alternar = null;
+    if (hijo) {
+      alternar = crear('button', 'chip-dim', 'Abrir todo');
+      alternar.type = 'button';
+      barra.appendChild(alternar);
+    }
     caja.appendChild(barra);
 
-    // Con muchas marcas la lista se vuelve infinita: se muestran las
+    // Con muchos grupos la lista se vuelve infinita: se muestran los
     // principales y el resto queda a un clic. Nunca se oculta en silencio.
     var TOPE = 12;
     var ocultas = [];
+    var filasGrupo = [];
 
-    var filasMarca = [];
     lista.forEach(function (item, orden) {
-      var pct = item.datos.total / total * 100;
+      var pct = item.datos.total / enGrupos * 100;
 
-      var cabeza = crear('button', 'marca-fila');
-      cabeza.type = 'button';
-      cabeza.setAttribute('aria-expanded', 'false');
+      var cabeza = crear(hijo ? 'button' : 'div', 'marca-fila' + (hijo ? '' : ' sin-hijos'));
+      if (hijo) {
+        cabeza.type = 'button';
+        cabeza.setAttribute('aria-expanded', 'false');
+      }
 
       // La proporción va de fondo de la fila, no en un renglón aparte: así
-      // cada marca ocupa una sola línea y quince entran de un vistazo.
+      // cada grupo ocupa una sola línea y doce entran de un vistazo.
       var relleno = crear('span', 'marca-relleno');
       relleno.style.width = Math.max(pct, 1.2) + '%';
       cabeza.appendChild(relleno);
 
-      cabeza.appendChild(crear('span', 'marca-flecha', '›'));
-      cabeza.appendChild(crear('span', 'marca-nombre', item.marca));
+      cabeza.appendChild(crear('span', 'marca-flecha', hijo ? '›' : ''));
+      cabeza.appendChild(crear('span', 'marca-nombre', item.nombre));
       cabeza.appendChild(crear('span', 'marca-cant', miles(item.datos.total)));
       cabeza.appendChild(crear('span', 'marca-pct', pct.toFixed(1) + '%'));
 
-      var hijos = crear('div', 'marca-hijos');
-      hijos.hidden = true;
-      Object.keys(item.datos.modelos)
-        .map(function (k) { return [k.split(SEP), item.datos.modelos[k]]; })
-        .sort(function (a, b) { return b[1] - a[1]; })
-        .forEach(function (m) {
-          var h = crear('div', 'hijo');
-          h.appendChild(crear('span', 'hijo-modelo', m[0][0]));
-          h.appendChild(crear('span', 'hijo-anio', m[0][1]));
-          h.appendChild(crear('span', 'hijo-cant', miles(m[1])));
-          hijos.appendChild(h);
+      var hijos = null;
+      if (hijo) {
+        hijos = crear('div', 'marca-hijos');
+        hijos.hidden = true;
+        Object.keys(item.datos.hijos)
+          .map(function (k) { return [k.split(SEP), item.datos.hijos[k]]; })
+          .sort(function (a, b) { return b[1] - a[1]; })
+          .forEach(function (m) {
+            var h = crear('div', 'hijo');
+            h.appendChild(crear('span', 'hijo-modelo', m[0][0]));
+            h.appendChild(crear('span', 'hijo-anio', m[0][1] || ''));
+            h.appendChild(crear('span', 'hijo-cant', miles(m[1])));
+            hijos.appendChild(h);
+          });
+
+        cabeza.addEventListener('click', function () {
+          var abierto = cabeza.getAttribute('aria-expanded') === 'true';
+          cabeza.setAttribute('aria-expanded', abierto ? 'false' : 'true');
+          hijos.hidden = abierto;
         });
+        filasGrupo.push({ cabeza: cabeza, hijos: hijos });
+      }
 
-      cabeza.addEventListener('click', function () {
-        var abierto = cabeza.getAttribute('aria-expanded') === 'true';
-        cabeza.setAttribute('aria-expanded', abierto ? 'false' : 'true');
-        hijos.hidden = abierto;
-      });
-
-      filasMarca.push({ cabeza: cabeza, hijos: hijos });
       caja.appendChild(cabeza);
-      caja.appendChild(hijos);
+      if (hijos) { caja.appendChild(hijos); }
 
       if (orden >= TOPE) {
         cabeza.hidden = true;
@@ -886,27 +918,50 @@
 
     if (ocultas.length) {
       ver = crear('button', 'ver-mas',
-        'Ver las ' + miles(ocultas.length) + ' marcas restantes');
+        'Ver ' + (opciones.masTexto || 'los ' + miles(ocultas.length) + ' restantes'));
+      ver.textContent = 'Ver ' + miles(ocultas.length) + ' ' + (opciones.masTexto || 'más');
       ver.type = 'button';
       ver.addEventListener('click', revelarOcultas);
       caja.appendChild(ver);
     }
 
-    alternar.addEventListener('click', function () {
-      var abrir = alternar.textContent === 'Abrir todo';
-      // Abrir todo revela también las marcas que estaban bajo el tope: si no,
-      // aparecerían modelos sueltos sin la marca que los encabeza.
-      if (abrir) { revelarOcultas(); }
-      filasMarca.forEach(function (f) {
-        f.cabeza.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-        f.hijos.hidden = !abrir;
+    if (alternar) {
+      alternar.addEventListener('click', function () {
+        var abrir = alternar.textContent === 'Abrir todo';
+        // Abrir todo revela también los que estaban bajo el tope: si no,
+        // aparecerían hijos sueltos sin la línea que los encabeza.
+        if (abrir) { revelarOcultas(); }
+        filasGrupo.forEach(function (f) {
+          f.cabeza.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+          f.hijos.hidden = !abrir;
+        });
+        alternar.textContent = abrir ? 'Cerrar todo' : 'Abrir todo';
       });
-      alternar.textContent = abrir ? 'Cerrar todo' : 'Abrir todo';
-    });
+    }
 
     sec.appendChild(caja);
-    sec.appendChild(crear('p', 'nota', 'Tocá una marca para ver sus modelos y años.'));
+    if (opciones.nota) { sec.appendChild(crear('p', 'nota', opciones.nota)); }
     cont.appendChild(sec);
+  }
+
+  function cuadroDetalle(cont, filas, total) {
+    cuadroPlegable(cont, {
+      titulo: 'Detalle de unidades',
+      filas: filas,
+      total: total,
+      padre: { clave: 'marca', vacio: 'Sin marca' },
+      hijo: { fn: function (f) {
+        var modelo = celda(f, 'modelo');
+        var anio = celda(f, 'anio');
+        return [esVacio(modelo) ? SIN_DATO : modelo, esVacio(anio) ? SIN_DATO : anio];
+      } },
+      resumen: function (nMarcas, nModelos) {
+        return miles(nMarcas) + (nMarcas === 1 ? ' marca' : ' marcas') + '  ·  ' +
+               miles(nModelos) + (nModelos === 1 ? ' modelo' : ' modelos');
+      },
+      masTexto: 'marcas más',
+      nota: 'Tocá una marca para ver sus modelos y años.'
+    });
   }
 
   function kpi(cifra, rotulo, clase) {
@@ -1024,7 +1079,7 @@
     ];
     // En la vista general, mirar la flota por secretaría es tan útil como
     // por ministerio, así que se ofrece además del desglose de abajo.
-    if (config.general && HAY_SECRETARIA) {
+    if (config.general && HAY_JERARQUIA) {
       dimensiones.splice(3, 0, { clave: 'secretaria', rotulo: 'Secretaría' });
     }
     if (config.desglose) {
@@ -1039,29 +1094,48 @@
       cuadroDetalle(cont, filas, total);
       return;
     }
-    var desglose = config.desglose || { clave: 'ministerio', titulo: 'Unidades asignadas por Ministerio', rotulo: 'Ministerio' };
+    var desglose = config.desglose || {
+      clave: 'ministerio',
+      titulo: 'Unidades asignadas por Ministerio',
+      rotulo: 'Ministerio',
+      plural: 'ministerios',
+      // En la vista general, cada ministerio se abre en sus secretarías
+      hijo: HAY_JERARQUIA
+        ? { fn: dependencia, plural: 'secretarías o subsecretarías' }
+        : SUB_REPARTICION
+    };
 
-    var cuenta = {};
-    filas.forEach(function (f) {
-      var v = desglose.fn ? desglose.fn(f) : celda(f, desglose.clave);
-      if (esVacio(v)) { return; }
-      cuenta[v] = (cuenta[v] || 0) + 1;
+    // Cuántas unidades quedan fuera del desglose por no tener el dato
+    var asignadas = contar(filas, function (f) {
+      return !esVacio(desglose.fn ? desglose.fn(f) : celda(f, desglose.clave));
     });
-    var porGrupo = Object.keys(cuenta)
-      .map(function (v) { return [v, cuenta[v]]; })
-      .sort(function (a, b) { return b[1] - a[1]; });
 
-    if (porGrupo.length) {
-      var asignadas = sumaColumnas(porGrupo)[1];
-      cuadro(cont, desglose.titulo,
-        [desglose.rotulo, 'Unidades'],
-        porGrupo,
-        ['TOTAL'].concat([asignadas]),
-        { nota: total - asignadas
-            ? 'No incluye ' + miles(total - asignadas) + ' unidades sin ' +
-              desglose.rotulo.toLowerCase() + ' asignado en la base.'
-            : null });
-    }
+    // Cada línea se abre en el nivel siguiente de la cadena, como una
+    // mamushka: un ministerio muestra sus secretarías, y cada secretaría las
+    // reparticiones que dependen de ella.
+    var subnivel = desglose.hijo;
+    cuadroPlegable(cont, {
+      titulo: desglose.titulo,
+      filas: filas,
+      total: total,
+      padre: { fn: desglose.fn, clave: desglose.clave },
+      hijo: subnivel ? { fn: function (f) {
+        var v = subnivel.fn ? subnivel.fn(f) : celda(f, subnivel.clave);
+        return [esVacio(v) ? subnivel.vacio || SIN_DATO : v, ''];
+      } } : null,
+      resumen: function (n, nh) {
+        var texto = miles(n) + ' ' + (n === 1 ? desglose.rotulo.toLowerCase() : desglose.plural) +
+          '  ·  ' + miles(asignadas) + (asignadas === 1 ? ' unidad' : ' unidades');
+        if (!subnivel) { return texto; }
+        var sub = nh === 1 ? subnivel.plural.replace(/es$|s$/, '') : subnivel.plural;
+        return texto + '  ·  ' + miles(nh) + ' ' + sub;
+      },
+      masTexto: 'más',
+      nota: (total - asignadas
+        ? 'No incluye ' + miles(total - asignadas) + ' unidades sin ' +
+          desglose.rotulo.toLowerCase() + ' asignado en la base. '
+        : '') + (subnivel ? 'Tocá una línea para ver ' + subnivel.plural + ' que dependen de ella.' : '')
+    });
 
     // El detalle cierra siempre: es el nivel más fino de todas las vistas.
     cuadroDetalle(cont, filas, total);

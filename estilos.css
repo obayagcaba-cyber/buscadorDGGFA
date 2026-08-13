@@ -634,6 +634,10 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
    filas por encima del tope se siguen viendo. */
 .marca-fila[hidden] { display: none; }
 
+/* Una línea sin nivel siguiente no es interactiva */
+.marca-fila.sin-hijos { cursor: default; }
+.marca-fila.sin-hijos:hover { background: transparent; }
+
 .marca-fila:first-of-type { border-top: 0; }
 .marca-fila > span:not(.marca-relleno) { position: relative; }
 .marca-fila:hover { background: var(--menta-fondo); }
