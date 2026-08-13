@@ -714,8 +714,12 @@
       .map(function (m) { return { marca: m, datos: marcas[m] }; })
       .sort(function (a, b) { return b.datos.total - a.datos.total; });
 
+    // Modelos distintos, no combinaciones: un mismo modelo en tres años es
+    // un modelo, aunque adentro se abra en tres líneas.
     var modelosDistintos = lista.reduce(function (t, x) {
-      return t + Object.keys(x.datos.modelos).length;
+      var vistos = {};
+      Object.keys(x.datos.modelos).forEach(function (k) { vistos[k.split(SEP)[0]] = 1; });
+      return t + Object.keys(vistos).length;
     }, 0);
 
     var sec = crear('section', 'cuadro');
@@ -732,8 +736,13 @@
     barra.appendChild(alternar);
     caja.appendChild(barra);
 
+    // Con muchas marcas la lista se vuelve infinita: se muestran las
+    // principales y el resto queda a un clic. Nunca se oculta en silencio.
+    var TOPE = 12;
+    var ocultas = [];
+
     var filasMarca = [];
-    lista.forEach(function (item) {
+    lista.forEach(function (item, orden) {
       var pct = item.datos.total / total * 100;
 
       var cabeza = crear('button', 'marca-fila');
@@ -773,10 +782,33 @@
       filasMarca.push({ cabeza: cabeza, hijos: hijos });
       caja.appendChild(cabeza);
       caja.appendChild(hijos);
+
+      if (orden >= TOPE) {
+        cabeza.hidden = true;
+        ocultas.push(cabeza);
+      }
     });
+
+    var ver = null;
+    function revelarOcultas() {
+      ocultas.forEach(function (c) { c.hidden = false; });
+      ocultas = [];
+      if (ver) { ver.remove(); ver = null; }
+    }
+
+    if (ocultas.length) {
+      ver = crear('button', 'ver-mas',
+        'Ver las ' + miles(ocultas.length) + ' marcas restantes');
+      ver.type = 'button';
+      ver.addEventListener('click', revelarOcultas);
+      caja.appendChild(ver);
+    }
 
     alternar.addEventListener('click', function () {
       var abrir = alternar.textContent === 'Abrir todo';
+      // Abrir todo revela también las marcas que estaban bajo el tope: si no,
+      // aparecerían modelos sueltos sin la marca que los encabeza.
+      if (abrir) { revelarOcultas(); }
       filasMarca.forEach(function (f) {
         f.cabeza.setAttribute('aria-expanded', abrir ? 'true' : 'false');
         f.hijos.hidden = !abrir;
@@ -907,13 +939,14 @@
     }
     cuadroGrafico(cont, filas, dimensiones);
 
-    // --- Detalle: que unidades componen el conjunto
-    if (config.detalle) { cuadroDetalle(cont, filas, total); }
-
     // --- Desglose: por ministerio en la vista general, por repartición
-    //     dentro de un ministerio.
+    //     dentro de un ministerio. Una repartición ya no tiene nivel
+    //     siguiente, así que ahí se pasa directo al detalle.
+    if (config.detalle) {
+      cuadroDetalle(cont, filas, total);
+      return;
+    }
     var desglose = config.desglose || { clave: 'ministerio', titulo: 'Unidades asignadas por Ministerio', rotulo: 'Ministerio' };
-    if (config.detalle) { return; }
 
     var cuenta = {};
     filas.forEach(function (f) {
@@ -936,6 +969,9 @@
               desglose.rotulo.toLowerCase() + ' asignado en la base.'
             : null });
     }
+
+    // El detalle cierra siempre: es el nivel más fino de todas las vistas.
+    cuadroDetalle(cont, filas, total);
   }
 
   /* --------------------------------------------------------------- solapas */
