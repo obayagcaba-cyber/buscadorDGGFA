@@ -652,7 +652,14 @@
     var cuenta = {};
     filas.forEach(function (f) {
       var v = dim.fn ? dim.fn(f) : celda(f, dim.clave);
-      cuenta[esVacio(v) ? 'Sin dato' : v] = (cuenta[esVacio(v) ? 'Sin dato' : v] || 0) + 1;
+      // Algunas dimensiones no admiten un "Sin dato": una unidad sin
+      // ministerio no es un ministerio más, y con 1.468 casos se come el
+      // gráfico y aplasta a los doce reales.
+      if (esVacio(v)) {
+        if (dim.omitirVacios) { return; }
+        v = 'Sin dato';
+      }
+      cuenta[v] = (cuenta[v] || 0) + 1;
     });
     // El recorte va SIEMPRE por volumen: si se recortara por año, los cinco
     // valores mas viejos taparian al resto y "Otras" se comeria el grafico.
@@ -753,12 +760,22 @@
     controles.setAttribute('aria-label', 'Ver la composición por');
     var lienzo = crear('div', 'grafico-lienzo');
 
+    var nota = crear('p', 'nota');
+
     function pintar(dim) {
       lienzo.innerHTML = '';
       var datos = agrupar(filas, dim, dim.orden);
       var total = datos.reduce(function (t, d) { return t + d[1]; }, 0);
       lienzo.appendChild(dibujarAnillo(datos, total));
       lienzo.appendChild(dibujarLeyenda(datos, total));
+
+      // Si se dejaron unidades afuera, el anillo lo dice: el total del
+      // centro no puede diferir del de la flota sin explicación.
+      var fuera = filas.length - total;
+      nota.textContent = fuera > 0
+        ? 'No incluye ' + miles(fuera) + ' unidades sin ' + dim.rotulo.toLowerCase() + ' asignado.'
+        : '';
+      nota.hidden = fuera <= 0;
     }
 
     dimensiones.forEach(function (dim, i) {
@@ -778,6 +795,7 @@
     cuerpo.appendChild(controles);
     cuerpo.appendChild(lienzo);
     sec.appendChild(cuerpo);
+    sec.appendChild(nota);
     cont.appendChild(sec);
     pintar(dimensiones[0]);
   }
@@ -1083,9 +1101,9 @@
        terminaba agrupando todo en "Sin dato". En la vista general la
        repartición no dice nada (son 248), así que va el ministerio. */
     if (config.general) {
-      dimensiones.splice(2, 0, { clave: 'ministerio', rotulo: 'Ministerio' });
+      dimensiones.splice(2, 0, { clave: 'ministerio', rotulo: 'Ministerio', omitirVacios: true });
     } else if (config.desglose) {
-      dimensiones.splice(2, 0, { clave: 'reparticion', rotulo: 'Repartición' });
+      dimensiones.splice(2, 0, { clave: 'reparticion', rotulo: 'Repartición', omitirVacios: true });
     }
     cuadroGrafico(cont, filas, dimensiones);
 
@@ -1138,6 +1156,38 @@
           desglose.rotulo.toLowerCase() + ' asignado en la base. '
         : '') + (subnivel ? 'Tocá una línea para ver ' + subnivel.plural + ' que dependen de ella.' : '')
     });
+
+    /* Las unidades sin ministerio no son un ministerio más: casi ninguna
+       tiene servicios ni anticuación, y las observaciones muestran que son
+       bajas, subastas, paraderos desconocidos o flota informada por
+       terceros. Van en su propio cuadro, agrupadas por tipo y abiertas en
+       el motivo que trae la base. */
+    if (config.general) {
+      var huerfanas = filas.filter(function (f) { return esVacio(celda(f, 'ministerio')); });
+      if (huerfanas.length) {
+        var activas = contar(huerfanas, function (f) { return marcada(f, 'anticuacion'); });
+        cuadroPlegable(cont, {
+          titulo: 'Unidades sin ministerio asignado',
+          filas: huerfanas,
+          total: huerfanas.length,
+          padre: { clave: 'tipo', vacio: 'Sin tipo' },
+          hijo: { fn: function (f) {
+            var obs = celda(f, 'observaciones');
+            return [esVacio(obs) ? 'Sin observaciones en la base' : obs, ''];
+          } },
+          resumen: function (nTipos, nMotivos) {
+            return miles(huerfanas.length) + ' unidades  ·  ' + miles(nTipos) +
+              (nTipos === 1 ? ' tipo' : ' tipos') + '  ·  ' + miles(nMotivos) +
+              (nMotivos === 1 ? ' observación' : ' observaciones');
+          },
+          masTexto: 'tipos más',
+          nota: 'Son las unidades que el anillo deja fuera del corte por ministerio. ' +
+                'Solo ' + miles(activas) + ' figura' + (activas === 1 ? '' : 'n') +
+                ' en la anticuación de ' + D.periodo + ', así que en su enorme mayoría no ' +
+                'están operativas. Tocá un tipo para ver qué dice la base de cada una.'
+        });
+      }
+    }
 
     // El detalle cierra siempre: es el nivel más fino de todas las vistas.
     cuadroDetalle(cont, filas, total);
