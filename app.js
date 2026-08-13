@@ -39,29 +39,56 @@
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
-  // El nivel intermedio existe solo si jerarquia.xlsx está cargado. Sin él,
-  // un ministerio se desglosa directo en reparticiones.
-  var HAY_SECRETARIA = D.claves.indexOf('secretaria') !== -1 &&
-    D.filas.some(function (f) { return !esVacio(celda(f, 'secretaria')); });
+  /* Los niveles intermedios existen solo si jerarquia.xlsx está cargado.
+     Sin él, un ministerio se desglosa directo en reparticiones y nada de
+     esto aparece. */
+  var HAY_JERARQUIA = D.claves.indexOf('secretaria') !== -1;
+
+  // No todas las reparticiones cuelgan de una secretaría: en muchos
+  // ministerios el nivel siguiente es directamente una subsecretaría. Esto
+  // devuelve el escalón que corresponda en cada caso.
+  function dependencia(fila) {
+    var sec = celda(fila, 'secretaria');
+    if (!esVacio(sec)) { return sec; }
+    var sub = celda(fila, 'subsecretaria');
+    if (!esVacio(sub)) { return sub; }
+    return 'Depende directo del Ministerio';
+  }
 
   var DESGLOSE_REPARTICION = { clave: 'reparticion', titulo: 'Unidades por Repartición', rotulo: 'Repartición' };
-  var DESGLOSE_SECRETARIA = { clave: 'secretaria', titulo: 'Unidades por Secretaría / Subsecretaría', rotulo: 'Secretaría / Subsecretaría' };
+  var DESGLOSE_DEPENDENCIA = { fn: dependencia, titulo: 'Unidades por Secretaría / Subsecretaría', rotulo: 'Secretaría / Subsecretaría' };
+  var DESGLOSE_SUBSECRETARIA = { clave: 'subsecretaria', titulo: 'Unidades por Subsecretaría', rotulo: 'Subsecretaría' };
 
-  // Ministerios, secretarías y reparticiones con su cantidad de unidades,
-  // para poder buscar por organismo además de por dominio.
+  // Cada nivel de la cadena es buscable y se desglosa en el siguiente:
+  // ministerio > secretaría > subsecretaría > repartición > unidad.
   var GRUPOS = [
     { clave: 'ministerio', etiqueta: 'Ministerio',
-      desglose: HAY_SECRETARIA ? DESGLOSE_SECRETARIA : DESGLOSE_REPARTICION }
+      desglose: HAY_JERARQUIA ? DESGLOSE_DEPENDENCIA : DESGLOSE_REPARTICION }
   ];
 
-  if (HAY_SECRETARIA) {
-    GRUPOS.push({ clave: 'secretaria', etiqueta: 'Secretaría / Subsecretaría',
-                  desglose: DESGLOSE_REPARTICION });
+  if (HAY_JERARQUIA) {
+    GRUPOS.push({ clave: 'secretaria', etiqueta: 'Secretaría', desglose: DESGLOSE_SUBSECRETARIA });
+    GRUPOS.push({ clave: 'subsecretaria', etiqueta: 'Subsecretaría', desglose: DESGLOSE_REPARTICION });
+    GRUPOS.push({ clave: 'funcionario', etiqueta: 'Funcionario', desglose: DESGLOSE_REPARTICION });
   }
 
   // En una repartición no hay nivel siguiente: en vez de un desglose va el
   // detalle de las unidades que la componen.
   GRUPOS.push({ clave: 'reparticion', etiqueta: 'Repartición', detalle: true });
+
+  // Rango + nombre, como lo anota el organigrama del GCBA
+  // ("Ministro Gustavo Arengo Piragine").
+  function responsableDe(filas) {
+    if (!HAY_JERARQUIA || !filas.length) { return null; }
+    var nombre = celda(filas[0], 'funcionario');
+    var rango = celda(filas[0], 'rango');
+    if (esVacio(nombre)) { return null; }
+    // Solo se muestra si todo el conjunto responde a la misma persona.
+    for (var i = 1; i < filas.length; i++) {
+      if (celda(filas[i], 'funcionario') !== nombre) { return null; }
+    }
+    return esVacio(rango) ? nombre : rango + '  ·  ' + nombre;
+  }
 
   GRUPOS.forEach(function (g) {
     var cuenta = {};
@@ -127,7 +154,10 @@
     ] },
     { num: '02', titulo: 'Asignación institucional', campos: [
       { clave: 'ministerio', rotulo: 'Ministerio' },
+      { clave: 'secretaria', rotulo: 'Secretaría', soloConJerarquia: true },
+      { clave: 'subsecretaria', rotulo: 'Subsecretaría', soloConJerarquia: true },
       { clave: 'reparticion', rotulo: 'Repartición' },
+      { clave: 'responsable', rotulo: 'A cargo de', formato: 'responsable', soloConJerarquia: true },
       { clave: 'km', rotulo: 'Kilometraje', formato: 'km' }
     ] },
     { num: '03', titulo: 'Servicios activos', campos: [
@@ -193,6 +223,12 @@
         if (monto === null) { return { texto: SIN_DATO, clase: 'vacio' }; }
         return { texto: pesos(monto / 24), nota: 'Monto ÷ 24' };
 
+      case 'responsable':
+        var quien = celda(fila, 'funcionario');
+        if (esVacio(quien)) { return { texto: SIN_DATO, clase: 'vacio' }; }
+        var cargo = celda(fila, 'rango');
+        return { texto: quien, nota: esVacio(cargo) ? null : cargo };
+
       default:
         if (esVacio(bruto)) { return { texto: SIN_DATO, clase: 'vacio' }; }
         return { texto: bruto };
@@ -241,6 +277,8 @@
       var ajustes = (D.correcciones || {})[celda(fila, 'patente')] || {};
 
       bloque.campos.forEach(function (campo) {
+        // Los campos de organigrama solo existen con jerarquia.xlsx cargado
+        if (campo.soloConJerarquia && !HAY_JERARQUIA) { return; }
         var v = valorMostrable(fila, campo);
         var caja = crear('div', 'dato');
         caja.appendChild(crear('dt', null, campo.rotulo));
@@ -383,6 +421,20 @@
     cab.appendChild(crear('div', 'organismo-veh',
       miles(filas.length) + (filas.length === 1 ? ' unidad asignada' : ' unidades asignadas') +
       '  ·  ' + D.periodo));
+
+    // Quién está a cargo, cuando todo el conjunto responde a la misma
+    // persona. En la vista de un funcionario el nombre ya es el título, así
+    // que ahí alcanza con su rango.
+    if (grupo.clave === 'funcionario') {
+      var rango = celda(filas[0], 'rango');
+      var mismo = filas.every(function (f) { return celda(f, 'rango') === rango; });
+      if (mismo && !esVacio(rango)) {
+        cab.appendChild(crear('div', 'responsable-grupo', rango));
+      }
+    } else {
+      var quien = responsableDe(filas);
+      if (quien) { cab.appendChild(crear('div', 'responsable-grupo', quien)); }
+    }
     contFicha.appendChild(cab);
 
     var cuerpo = crear('div', 'resumen-grupo');
@@ -991,7 +1043,7 @@
 
     var cuenta = {};
     filas.forEach(function (f) {
-      var v = celda(f, desglose.clave);
+      var v = desglose.fn ? desglose.fn(f) : celda(f, desglose.clave);
       if (esVacio(v)) { return; }
       cuenta[v] = (cuenta[v] || 0) + 1;
     });
