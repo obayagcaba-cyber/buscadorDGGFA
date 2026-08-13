@@ -850,6 +850,63 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
   text-align: right;
 }
 
+/* --------------------------------------------------- lo que no tiene dato
+
+   Separado de la leyenda por una línea: no es una porción del anillo, es lo
+   que quedó fuera del corte. En gris, porque no es una categoría más. */
+
+.panel-leyenda { width: 100%; max-width: 420px; }
+
+.sin-dato {
+  display: grid;
+  grid-template-columns: 12px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--linea);
+  font-size: 13px;
+}
+
+.sin-dato-marca {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: rgba(29, 51, 67, .16);
+  border: 1px dashed rgba(29, 51, 67, .45);
+}
+
+.sin-dato-nombre {
+  text-transform: uppercase;
+  font-size: 12px;
+  color: rgba(29, 51, 67, .78);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sin-dato-valor {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(29, 51, 67, .78);
+}
+
+.sin-dato-pct {
+  font-size: 12px;
+  color: var(--azul-claro);
+  font-variant-numeric: tabular-nums;
+  min-width: 46px;
+  text-align: right;
+}
+
+.sin-dato-pie {
+  font-size: 11.5px;
+  color: var(--azul-claro);
+  line-height: 1.4;
+  margin: 7px 0 0;
+  padding: 0 8px;
+}
+
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 
 /* Las cifras van centradas y con ancho de digito fijo, para que las
@@ -995,7 +1052,8 @@ tfoot td:first-child { color: var(--blanco); }
     gap: 40px;
   }
   .anillo { width: 240px; flex: 0 0 auto; }
-  .leyenda { max-width: 380px; }
+  .panel-leyenda { max-width: 400px; }
+  .leyenda { max-width: none; }
   .anillo-total { font-size: 34px; }
   table { font-size: 14px; }
   thead th, tfoot td { font-size: 14px; }

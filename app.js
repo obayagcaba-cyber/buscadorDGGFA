@@ -634,13 +634,14 @@
   var TRAMOS_ANTIGUEDAD = [
     'Hasta 3 años (' + ANIO_BASE + ' a ' + (ANIO_BASE - 2) + ')',
     'De 3 a 5 años (' + (ANIO_BASE - 3) + ' a ' + (ANIO_BASE - 5) + ')',
-    'Más de 5 años (' + (ANIO_BASE - 6) + ' inclusive)',
-    'Sin dato'
+    'Más de 5 años (' + (ANIO_BASE - 6) + ' inclusive)'
   ];
 
+  // Devuelve vacío cuando no hay año, para que quede fuera del anillo junto
+  // al resto de los datos faltantes en vez de ser un tramo más.
   function antiguedad(fila) {
     var a = parseInt(celda(fila, 'anio'), 10);
-    if (!a) { return TRAMOS_ANTIGUEDAD[3]; }
+    if (!a) { return ''; }
     if (a >= ANIO_BASE - 2) { return TRAMOS_ANTIGUEDAD[0]; }
     if (a >= ANIO_BASE - 5) { return TRAMOS_ANTIGUEDAD[1]; }
     return TRAMOS_ANTIGUEDAD[2];
@@ -760,22 +761,34 @@
     controles.setAttribute('aria-label', 'Ver la composición por');
     var lienzo = crear('div', 'grafico-lienzo');
 
-    var nota = crear('p', 'nota');
-
     function pintar(dim) {
       lienzo.innerHTML = '';
       var datos = agrupar(filas, dim, dim.orden);
       var total = datos.reduce(function (t, d) { return t + d[1]; }, 0);
       lienzo.appendChild(dibujarAnillo(datos, total));
-      lienzo.appendChild(dibujarLeyenda(datos, total));
 
-      // Si se dejaron unidades afuera, el anillo lo dice: el total del
-      // centro no puede diferir del de la flota sin explicación.
+      var panel = crear('div', 'panel-leyenda');
+      panel.appendChild(dibujarLeyenda(datos, total));
+
+      /* Lo que no tiene el dato no entra al anillo, pero tampoco se esconde:
+         va debajo de la leyenda, separado y en gris. Gris y no un color de
+         la paleta, porque no es una categoría más: es la ausencia del dato
+         con el que se está cortando. */
       var fuera = filas.length - total;
-      nota.textContent = fuera > 0
-        ? 'No incluye ' + miles(fuera) + ' unidades sin ' + dim.rotulo.toLowerCase() + ' asignado.'
-        : '';
-      nota.hidden = fuera <= 0;
+      if (fuera > 0) {
+        var falta = crear('div', 'sin-dato');
+        falta.appendChild(crear('span', 'sin-dato-marca'));
+        falta.appendChild(crear('span', 'sin-dato-nombre', dim.sinDato || 'Sin dato'));
+        falta.appendChild(crear('span', 'sin-dato-valor', miles(fuera)));
+        falta.appendChild(crear('span', 'sin-dato-pct',
+          (fuera / filas.length * 100).toFixed(1) + '%'));
+        panel.appendChild(falta);
+        panel.appendChild(crear('p', 'sin-dato-pie',
+          'Queda fuera del gráfico: el anillo compara las ' + miles(total) +
+          ' unidades que sí tienen el dato.'));
+      }
+
+      lienzo.appendChild(panel);
     }
 
     dimensiones.forEach(function (dim, i) {
@@ -795,7 +808,6 @@
     cuerpo.appendChild(controles);
     cuerpo.appendChild(lienzo);
     sec.appendChild(cuerpo);
-    sec.appendChild(nota);
     cont.appendChild(sec);
     pintar(dimensiones[0]);
   }
@@ -1089,11 +1101,13 @@
         ' de ' + miles(total) + ').' });
 
     // --- Composición: un anillo con la dimensión que se elija
+    // Todas omiten los faltantes: el anillo compara lo que hay, y lo que
+    // falta se muestra aparte, debajo de la leyenda.
     var dimensiones = [
-      { clave: 'tipo', rotulo: 'Tipo' },
-      { clave: 'marca', rotulo: 'Marca' },
-      { fn: antiguedad, rotulo: 'Antigüedad', orden: TRAMOS_ANTIGUEDAD },
-      { clave: 'tipoCombustible', rotulo: 'Combustible' }
+      { clave: 'tipo', rotulo: 'Tipo', omitirVacios: true, sinDato: 'Sin tipo registrado' },
+      { clave: 'marca', rotulo: 'Marca', omitirVacios: true, sinDato: 'Sin marca registrada' },
+      { fn: antiguedad, rotulo: 'Antigüedad', orden: TRAMOS_ANTIGUEDAD, omitirVacios: true, sinDato: 'Sin año registrado' },
+      { clave: 'tipoCombustible', rotulo: 'Combustible', omitirVacios: true, sinDato: 'Sin combustible asignado' }
     ];
     /* Dimensión organizacional del anillo. En una vista de organismo es la
        repartición: la secretaría ya la desglosa el cuadro de abajo, y como
@@ -1101,9 +1115,11 @@
        terminaba agrupando todo en "Sin dato". En la vista general la
        repartición no dice nada (son 248), así que va el ministerio. */
     if (config.general) {
-      dimensiones.splice(2, 0, { clave: 'ministerio', rotulo: 'Ministerio', omitirVacios: true });
+      dimensiones.splice(2, 0, { clave: 'ministerio', rotulo: 'Ministerio',
+        omitirVacios: true, sinDato: 'Sin ministerio asignado' });
     } else if (config.desglose) {
-      dimensiones.splice(2, 0, { clave: 'reparticion', rotulo: 'Repartición', omitirVacios: true });
+      dimensiones.splice(2, 0, { clave: 'reparticion', rotulo: 'Repartición',
+        omitirVacios: true, sinDato: 'Sin repartición asignada' });
     }
     cuadroGrafico(cont, filas, dimensiones);
 
