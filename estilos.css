@@ -180,7 +180,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
 }
 
 #patente::placeholder {
-  color: rgba(29, 51, 67, .38);
+  color: rgba(29, 51, 67, .55);
   letter-spacing: .08em;
   font-weight: 500;
 }
@@ -202,12 +202,15 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
   cursor: pointer;
 }
 
-/* Sugerencias mientras se escribe */
+/* Sugerencias mientras se escribe.
+   Cuelga de la placa azul, que pinta el texto de blanco: sobre este fondo
+   claro hay que volver al azul oscuro o las patentes no se leen. */
 .sugerencias {
   list-style: none;
   margin: 8px 0 0;
   padding: 6px;
   background: var(--blanco);
+  color: var(--azul-oscuro);
   border-radius: var(--radio);
   box-shadow: var(--sombra-alta);
   max-height: 232px;
@@ -359,9 +362,11 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
   overflow-wrap: anywhere;
 }
 
-.dato dd.vacio { font-weight: 400; color: rgba(29, 51, 67, .45); }
+/* Los valores secundarios se distinguen por peso, no por transparencia:
+   por debajo de .68 de opacidad el texto deja de cumplir contraste. */
+.dato dd.vacio { font-weight: 400; color: rgba(29, 51, 67, .68); }
 .dato dd.si { color: var(--azul-oscuro); }
-.dato dd.no { font-weight: 400; color: rgba(29, 51, 67, .5); }
+.dato dd.no { font-weight: 400; color: rgba(29, 51, 67, .7); }
 
 /* Marca sobre un dato que no existe en el archivo de origen */
 .nota-dato {
