@@ -800,6 +800,43 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
 .anillo:hover path { opacity: .55; }
 .anillo path:hover { opacity: 1; }
 
+/* Las porciones se pueden tocar para abrir el detalle de ese grupo */
+.anillo path.porcion { cursor: pointer; }
+.anillo path.apagada { opacity: .3; }
+.anillo:hover path.apagada { opacity: .3; }
+
+.leyenda li[role="button"] { cursor: pointer; }
+.leyenda li[role="button"]:hover { background: var(--menta-fondo); }
+.leyenda li[role="button"]:focus-visible { outline: 2px solid var(--amarillo); outline-offset: -2px; }
+
+.leyenda li.elegida {
+  background: var(--menta-fondo);
+  box-shadow: inset 3px 0 0 var(--azul-claro);
+}
+
+/* Detalle de la porción elegida, debajo del gráfico */
+.zoom-porcion:not(:empty) { margin-top: 22px; }
+.zoom-porcion .cuadro { margin-top: 0; }
+.zoom-porcion .titulo-cuadro { font-size: 13.5px; }
+
+.cerrar-zoom {
+  display: block;
+  margin: 10px auto 0;
+  appearance: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--azul-claro);
+  background: transparent;
+  border: 1px solid var(--linea);
+  border-radius: 999px;
+  padding: 7px 18px;
+  cursor: pointer;
+}
+
+.cerrar-zoom:hover { background: var(--menta-fondo); color: var(--azul-oscuro); }
+.cerrar-zoom:focus-visible { outline: 2px solid var(--amarillo); outline-offset: 2px; }
+
 .anillo-centro {
   position: absolute;
   inset: 0;

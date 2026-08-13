@@ -628,6 +628,22 @@
   var PALETA = ['#5BC19D', '#B59BE6', '#C4A953', '#DF8DB5', '#6CB2EC', '#E4956D'];
   var MAX_SEGMENTOS = 6;
 
+  // Niveles reutilizables para el detalle que se abre al tocar una porción
+  var NIVEL_MARCA = { clave: 'marca', vacio: 'Sin marca', plural: 'marcas' };
+  var NIVEL_MODELO = {
+    fn: function (f) {
+      var modelo = celda(f, 'modelo');
+      var anio = celda(f, 'anio');
+      return (esVacio(modelo) ? SIN_DATO : modelo) + SEP + (esVacio(anio) ? SIN_DATO : anio);
+    },
+    etiqueta: function (v) { return v.split(SEP)[0]; },
+    apostillaTexto: function (v) { return v.split(SEP)[1]; },
+    plural: 'modelos'
+  };
+  var NIVEL_DETALLE_UNIDAD = { clave: 'detalleUnidad', vacio: 'Sin detalle de unidad', plural: 'detalles' };
+  var NIVEL_TIPO = { clave: 'tipo', vacio: 'Sin tipo', plural: 'tipos' };
+  var NIVEL_REPARTICION = { clave: 'reparticion', vacio: 'Sin repartición', plural: 'reparticiones' };
+
   /* Antigüedad por tramos. Los cortes salen del año del período del archivo,
      no de una constante: en 2027 se corren solos. */
   var ANIO_BASE = parseInt((D.periodo.match(/(20\d\d)/) || [])[1], 10) || 2026;
@@ -667,23 +683,28 @@
     });
     // El recorte va SIEMPRE por volumen: si se recortara por año, los cinco
     // valores mas viejos taparian al resto y "Otras" se comeria el grafico.
+    // Cada porción recuerda qué valores la componen, para poder filtrar por
+    // ella cuando se la toca — incluida "Otras", que son varios.
     var lista = Object.keys(cuenta)
-      .map(function (k) { return [k, cuenta[k]]; })
-      .sort(function (a, b) { return b[1] - a[1]; });
+      .map(function (k) { return { nombre: k, cantidad: cuenta[k], valores: [k] }; })
+      .sort(function (a, b) { return b.cantidad - a.cantidad; });
 
     var resto = null;
     if (lista.length > MAX_SEGMENTOS) {
       var sobrantes = lista.slice(MAX_SEGMENTOS - 1);
       lista = lista.slice(0, MAX_SEGMENTOS - 1);
-      resto = ['Otras (' + sobrantes.length + ')',
-               sobrantes.reduce(function (t, x) { return t + x[1]; }, 0)];
+      resto = {
+        nombre: 'Otras (' + sobrantes.length + ')',
+        cantidad: sobrantes.reduce(function (t, x) { return t + x.cantidad; }, 0),
+        valores: sobrantes.map(function (x) { return x.nombre; })
+      };
     }
 
     // Recién ahora, si la dimensión tiene un orden propio, se aplica sobre lo
     // que quedó visible: los tramos de antigüedad van del más nuevo al más
     // viejo, no del más numeroso al menos.
     if (orden && orden.length) {
-      lista.sort(function (a, b) { return orden.indexOf(a[0]) - orden.indexOf(b[0]); });
+      lista.sort(function (a, b) { return orden.indexOf(a.nombre) - orden.indexOf(b.nombre); });
     }
     if (resto) { lista.push(resto); }
     return lista;
@@ -709,14 +730,14 @@
            'L' + b1 + 'A' + rInt + ',' + rInt + ' 0 ' + largo + ' 0 ' + b2 + 'Z';
   }
 
-  function dibujarAnillo(datos, total) {
+  function dibujarAnillo(datos, total, alElegir) {
     var fig = crear('div', 'anillo');
     var svg = svgEl('svg', { viewBox: '0 0 240 240', role: 'img' });
     svg.setAttribute('aria-label', 'Distribución en anillo; los valores están en la leyenda y en el cuadro de detalle.');
 
     var angulo = 0;
     datos.forEach(function (d, i) {
-      var porcion = d[1] / total * 360;
+      var porcion = d.cantidad / total * 360;
       // 2px de separación entre porciones, que es el fondo asomando
       var recorte = porcion > 6 ? 1.2 : 0;
       var path = svgEl('path', {
@@ -725,7 +746,11 @@
         'data-i': i
       });
       path.appendChild(svgEl('title', {})).textContent =
-        d[0] + ': ' + miles(d[1]) + ' (' + (d[1] / total * 100).toFixed(1) + '%)';
+        d.nombre + ': ' + miles(d.cantidad) + ' (' + (d.cantidad / total * 100).toFixed(1) + '%)';
+      if (alElegir) {
+        path.setAttribute('class', 'porcion');
+        path.addEventListener('click', function () { alElegir(i); });
+      }
       svg.appendChild(path);
       angulo += porcion;
     });
@@ -739,15 +764,23 @@
     return fig;
   }
 
-  function dibujarLeyenda(datos, total) {
+  function dibujarLeyenda(datos, total, alElegir) {
     var ul = crear('ul', 'leyenda');
     datos.forEach(function (d, i) {
       var li = crear('li');
+      if (alElegir) {
+        li.setAttribute('role', 'button');
+        li.setAttribute('tabindex', '0');
+        li.addEventListener('click', function () { alElegir(i); });
+        li.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alElegir(i); }
+        });
+      }
       li.appendChild(svgEl('svg', { class: 'muestra', viewBox: '0 0 10 10', 'aria-hidden': 'true' }))
         .appendChild(svgEl('rect', { x: 0, y: 0, width: 10, height: 10, rx: 3, fill: PALETA[i % PALETA.length] }));
-      li.appendChild(crear('span', 'leyenda-nombre', d[0]));
-      li.appendChild(crear('span', 'leyenda-valor', miles(d[1])));
-      li.appendChild(crear('span', 'leyenda-pct', (d[1] / total * 100).toFixed(1) + '%'));
+      li.appendChild(crear('span', 'leyenda-nombre', d.nombre));
+      li.appendChild(crear('span', 'leyenda-valor', miles(d.cantidad)));
+      li.appendChild(crear('span', 'leyenda-pct', (d.cantidad / total * 100).toFixed(1) + '%'));
       ul.appendChild(li);
     });
     return ul;
@@ -764,14 +797,56 @@
     controles.setAttribute('aria-label', 'Ver la composición por');
     var lienzo = crear('div', 'grafico-lienzo');
 
+    var zoom = crear('div', 'zoom-porcion');
+
     function pintar(dim) {
       lienzo.innerHTML = '';
+      zoom.innerHTML = '';
       var datos = agrupar(filas, dim, dim.orden);
-      var total = datos.reduce(function (t, d) { return t + d[1]; }, 0);
-      lienzo.appendChild(dibujarAnillo(datos, total));
+      var total = datos.reduce(function (t, d) { return t + d.cantidad; }, 0);
+
+      // Tocar una porción abre debajo el detalle de esas unidades. Vuelve a
+      // tocarse para cerrarla, y elegir otra la reemplaza.
+      var elegida = -1;
+      function elegir(i) {
+        var mismo = elegida === i;
+        elegida = mismo ? -1 : i;
+        lienzo.querySelectorAll('.porcion').forEach(function (p, k) {
+          p.classList.toggle('apagada', elegida >= 0 && k !== elegida);
+        });
+        lienzo.querySelectorAll('.leyenda li').forEach(function (l, k) {
+          l.classList.toggle('elegida', k === elegida);
+        });
+        zoom.innerHTML = '';
+        if (elegida < 0) { return; }
+
+        var d = datos[elegida];
+        var dentro = filas.filter(function (f) {
+          var v = dim.fn ? dim.fn(f) : celda(f, dim.clave);
+          return d.valores.indexOf(esVacio(v) ? 'Sin dato' : v) !== -1;
+        });
+        cuadroPlegable(zoom, {
+          titulo: d.nombre,
+          filas: dentro,
+          niveles: dim.detalle || [NIVEL_MARCA, NIVEL_MODELO],
+          resumen: function (c) {
+            var pct = (d.cantidad / total * 100).toFixed(1).replace('.', ',');
+            return miles(dentro.length) + (dentro.length === 1 ? ' unidad' : ' unidades') +
+              '  ·  ' + pct + ' % del gráfico';
+          },
+          masTexto: 'más',
+          nota: 'Detalle de la porción elegida. Tocala de nuevo en el gráfico para cerrarla.'
+        });
+        var cerrar = crear('button', 'cerrar-zoom', 'Cerrar');
+        cerrar.type = 'button';
+        cerrar.addEventListener('click', function () { elegir(elegida); });
+        zoom.appendChild(cerrar);
+      }
+
+      lienzo.appendChild(dibujarAnillo(datos, total, elegir));
 
       var panel = crear('div', 'panel-leyenda');
-      panel.appendChild(dibujarLeyenda(datos, total));
+      panel.appendChild(dibujarLeyenda(datos, total, elegir));
 
       /* Lo que no tiene el dato no entra al anillo, pero tampoco se esconde:
          va debajo de la leyenda, separado y en gris. Gris y no un color de
@@ -810,6 +885,7 @@
 
     cuerpo.appendChild(controles);
     cuerpo.appendChild(lienzo);
+    cuerpo.appendChild(zoom);
     sec.appendChild(cuerpo);
     cont.appendChild(sec);
     pintar(dimensiones[0]);
@@ -1110,11 +1186,17 @@
     // --- Composición: un anillo con la dimensión que se elija
     // Todas omiten los faltantes: el anillo compara lo que hay, y lo que
     // falta se muestra aparte, debajo de la leyenda.
+    // 'detalle' es la cadena que se abre al tocar una porción: el corte que
+    // mejor explica ese grupo, no siempre el mismo.
     var dimensiones = [
-      { clave: 'tipo', rotulo: 'Tipo', omitirVacios: true, sinDato: 'Sin tipo registrado' },
-      { clave: 'marca', rotulo: 'Marca', omitirVacios: true, sinDato: 'Sin marca registrada' },
-      { fn: antiguedad, rotulo: 'Antigüedad', orden: TRAMOS_ANTIGUEDAD, omitirVacios: true, sinDato: 'Sin año registrado' },
-      { clave: 'tipoCombustible', rotulo: 'Combustible', omitirVacios: true, sinDato: 'Sin combustible asignado' }
+      { clave: 'tipo', rotulo: 'Tipo', omitirVacios: true, sinDato: 'Sin tipo registrado',
+        detalle: [NIVEL_DETALLE_UNIDAD, NIVEL_MARCA, NIVEL_MODELO] },
+      { clave: 'marca', rotulo: 'Marca', omitirVacios: true, sinDato: 'Sin marca registrada',
+        detalle: [NIVEL_MODELO] },
+      { fn: antiguedad, rotulo: 'Antigüedad', orden: TRAMOS_ANTIGUEDAD, omitirVacios: true,
+        sinDato: 'Sin año registrado', detalle: [NIVEL_TIPO, NIVEL_MARCA, NIVEL_MODELO] },
+      { clave: 'tipoCombustible', rotulo: 'Combustible', omitirVacios: true,
+        sinDato: 'Sin combustible asignado', detalle: [NIVEL_TIPO, NIVEL_MARCA] }
     ];
     /* Dimensión organizacional del anillo. En una vista de organismo es la
        repartición: la secretaría ya la desglosa el cuadro de abajo, y como
@@ -1123,10 +1205,12 @@
        repartición no dice nada (son 248), así que va el ministerio. */
     if (config.general) {
       dimensiones.splice(2, 0, { clave: 'ministerio', rotulo: 'Ministerio',
-        omitirVacios: true, sinDato: 'Sin ministerio asignado' });
+        omitirVacios: true, sinDato: 'Sin ministerio asignado',
+        detalle: [NIVEL_REPARTICION, NIVEL_TIPO, NIVEL_MARCA] });
     } else if (config.desglose) {
       dimensiones.splice(2, 0, { clave: 'reparticion', rotulo: 'Repartición',
-        omitirVacios: true, sinDato: 'Sin repartición asignada' });
+        omitirVacios: true, sinDato: 'Sin repartición asignada',
+        detalle: [NIVEL_TIPO, NIVEL_MARCA, NIVEL_MODELO] });
     }
     cuadroGrafico(cont, filas, dimensiones);
 
