@@ -556,10 +556,31 @@
   var PALETA = ['#5BC19D', '#B59BE6', '#C4A953', '#DF8DB5', '#6CB2EC', '#E4956D'];
   var MAX_SEGMENTOS = 6;
 
-  function agrupar(filas, clave, orden) {
+  /* Antigüedad por tramos. Los cortes salen del año del período del archivo,
+     no de una constante: en 2027 se corren solos. */
+  var ANIO_BASE = parseInt((D.periodo.match(/(20\d\d)/) || [])[1], 10) || 2026;
+
+  var TRAMOS_ANTIGUEDAD = [
+    'Hasta 3 años (' + ANIO_BASE + ' a ' + (ANIO_BASE - 2) + ')',
+    'De 3 a 5 años (' + (ANIO_BASE - 3) + ' a ' + (ANIO_BASE - 5) + ')',
+    'Más de 5 años (' + (ANIO_BASE - 6) + ' inclusive)',
+    'Sin dato'
+  ];
+
+  function antiguedad(fila) {
+    var a = parseInt(celda(fila, 'anio'), 10);
+    if (!a) { return TRAMOS_ANTIGUEDAD[3]; }
+    if (a >= ANIO_BASE - 2) { return TRAMOS_ANTIGUEDAD[0]; }
+    if (a >= ANIO_BASE - 5) { return TRAMOS_ANTIGUEDAD[1]; }
+    return TRAMOS_ANTIGUEDAD[2];
+  }
+
+  // dim: {clave} para leer una columna, o {fn} para calcular la categoría.
+  // orden: sin definir ordena por cantidad; un arreglo fija el orden.
+  function agrupar(filas, dim, orden) {
     var cuenta = {};
     filas.forEach(function (f) {
-      var v = celda(f, clave);
+      var v = dim.fn ? dim.fn(f) : celda(f, dim.clave);
       cuenta[esVacio(v) ? 'Sin dato' : v] = (cuenta[esVacio(v) ? 'Sin dato' : v] || 0) + 1;
     });
     // El recorte va SIEMPRE por volumen: si se recortara por año, los cinco
@@ -576,10 +597,11 @@
                sobrantes.reduce(function (t, x) { return t + x[1]; }, 0)];
     }
 
-    // Recién ahora, si la dimensión tiene un orden propio (los años), se
-    // aplica sobre lo que quedó visible.
-    if (orden === 'natural') {
-      lista.sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+    // Recién ahora, si la dimensión tiene un orden propio, se aplica sobre lo
+    // que quedó visible: los tramos de antigüedad van del más nuevo al más
+    // viejo, no del más numeroso al menos.
+    if (orden && orden.length) {
+      lista.sort(function (a, b) { return orden.indexOf(a[0]) - orden.indexOf(b[0]); });
     }
     if (resto) { lista.push(resto); }
     return lista;
@@ -662,7 +684,7 @@
 
     function pintar(dim) {
       lienzo.innerHTML = '';
-      var datos = agrupar(filas, dim.clave, dim.orden);
+      var datos = agrupar(filas, dim, dim.orden);
       var total = datos.reduce(function (t, d) { return t + d[1]; }, 0);
       lienzo.appendChild(dibujarAnillo(datos, total));
       lienzo.appendChild(dibujarLeyenda(datos, total));
@@ -931,7 +953,7 @@
     var dimensiones = [
       { clave: 'tipo', rotulo: 'Tipo' },
       { clave: 'marca', rotulo: 'Marca' },
-      { clave: 'anio', rotulo: 'Año', orden: 'natural' },
+      { fn: antiguedad, rotulo: 'Antigüedad', orden: TRAMOS_ANTIGUEDAD },
       { clave: 'tipoCombustible', rotulo: 'Combustible' }
     ];
     if (config.desglose) {
