@@ -568,6 +568,136 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
   -webkit-overflow-scrolling: touch;
 }
 
+/* ------------------------------------------------------------------ anillo */
+
+.grafico-cuerpo {
+  border: 1px solid var(--linea);
+  border-top: 0;
+  border-radius: 0 0 var(--radio) var(--radio);
+  padding: 16px 14px 20px;
+}
+
+/* Los botones de dimension van arriba de lo que filtran, en una sola fila */
+.dimensiones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.chip-dim {
+  appearance: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--azul-claro);
+  background: transparent;
+  border: 1px solid var(--linea);
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+
+.chip-dim:hover { border-color: var(--azul-claro); }
+
+.chip-dim[aria-selected="true"] {
+  background: var(--azul-oscuro);
+  border-color: var(--azul-oscuro);
+  color: var(--blanco);
+  font-weight: 700;
+}
+
+.chip-dim:focus-visible { outline: 2px solid var(--amarillo); outline-offset: 2px; }
+
+.grafico-lienzo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.anillo { position: relative; width: 210px; max-width: 100%; }
+.anillo svg { display: block; width: 100%; height: auto; }
+
+.anillo path { transition: opacity .15s; }
+.anillo:hover path { opacity: .55; }
+.anillo path:hover { opacity: 1; }
+
+.anillo-centro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Cifra grande: figuras proporcionales, no tabulares */
+.anillo-total {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--azul-oscuro);
+}
+
+.anillo-rotulo {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--azul-claro);
+  margin-top: 3px;
+}
+
+/* La leyenda lleva los valores: nunca hay que distinguir un color para leer */
+.leyenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.leyenda li {
+  display: grid;
+  grid-template-columns: 12px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+
+.leyenda li:nth-child(odd) { background: rgba(29, 51, 67, .03); }
+
+.leyenda .muestra { width: 12px; height: 12px; }
+
+.leyenda-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: .02em;
+}
+
+.leyenda-valor { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.leyenda-pct {
+  font-size: 12px;
+  color: var(--azul-claro);
+  font-variant-numeric: tabular-nums;
+  min-width: 46px;
+  text-align: right;
+}
+
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 
 /* Las cifras van centradas y con ancho de digito fijo, para que las
@@ -704,6 +834,17 @@ tfoot td:first-child { color: var(--blanco); }
   .cuadro.principal { margin-top: 42px; }
   .titulo-cuadro { font-size: 16px; padding: 16px; }
   .cuadro.principal .titulo-cuadro { font-size: 21px; }
+
+  /* con ancho, el anillo y su leyenda conviven uno al lado del otro */
+  .grafico-lienzo {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+  }
+  .anillo { width: 240px; flex: 0 0 auto; }
+  .leyenda { max-width: 380px; }
+  .anillo-total { font-size: 34px; }
   table { font-size: 14px; }
   thead th, tfoot td { font-size: 14px; }
 }

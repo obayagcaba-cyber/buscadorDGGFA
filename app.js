@@ -44,8 +44,9 @@
   var GRUPOS = [
     { clave: 'ministerio', etiqueta: 'Ministerio',
       desglose: { clave: 'reparticion', titulo: 'Unidades por Repartición', rotulo: 'Repartición' } },
-    { clave: 'reparticion', etiqueta: 'Repartición',
-      desglose: { clave: 'marca', titulo: 'Unidades por marca', rotulo: 'Marca' } }
+    // En una repartición no hay nivel siguiente: en vez de un desglose va el
+    // detalle de las unidades que la componen.
+    { clave: 'reparticion', etiqueta: 'Repartición', detalle: true }
   ];
 
   GRUPOS.forEach(function (g) {
@@ -372,7 +373,7 @@
 
     var cuerpo = crear('div', 'resumen-grupo');
     contFicha.appendChild(cuerpo);
-    armarResumen(cuerpo, filas, { desglose: grupo.desglose });
+    armarResumen(cuerpo, filas, { desglose: grupo.desglose, detalle: grupo.detalle });
 
     enlace(grupo.clave + '=' + encodeURIComponent(valor));
   }
@@ -541,6 +542,153 @@
     return km > min && km <= max;
   }
 
+  /* ---------------------------------------------------------- gráfico anillo
+
+     Paleta de seis tonos suaves generada en OKLCH (L 0.74 / C 0.11) y validada:
+     entra en la banda de luminosidad, supera el piso de croma y mantiene una
+     separación de ΔE 8.8 bajo daltonismo y 17.3 en visión normal. Los tonos
+     tienen poco contraste contra el fondo a propósito, por eso cada segmento
+     lleva su valor en la leyenda y el cuadro de detalle repite todo en tabla:
+     nunca hay que distinguir un color para leer un dato.
+
+     El orden es fijo. No se recicla ni se agrega un séptimo: a partir del
+     quinto valor el resto se agrupa en "Otras". */
+  var PALETA = ['#5BC19D', '#B59BE6', '#C4A953', '#DF8DB5', '#6CB2EC', '#E4956D'];
+  var MAX_SEGMENTOS = 6;
+
+  function agrupar(filas, clave, orden) {
+    var cuenta = {};
+    filas.forEach(function (f) {
+      var v = celda(f, clave);
+      cuenta[esVacio(v) ? 'Sin dato' : v] = (cuenta[esVacio(v) ? 'Sin dato' : v] || 0) + 1;
+    });
+    // El recorte va SIEMPRE por volumen: si se recortara por año, los cinco
+    // valores mas viejos taparian al resto y "Otras" se comeria el grafico.
+    var lista = Object.keys(cuenta)
+      .map(function (k) { return [k, cuenta[k]]; })
+      .sort(function (a, b) { return b[1] - a[1]; });
+
+    var resto = null;
+    if (lista.length > MAX_SEGMENTOS) {
+      var sobrantes = lista.slice(MAX_SEGMENTOS - 1);
+      lista = lista.slice(0, MAX_SEGMENTOS - 1);
+      resto = ['Otras (' + sobrantes.length + ')',
+               sobrantes.reduce(function (t, x) { return t + x[1]; }, 0)];
+    }
+
+    // Recién ahora, si la dimensión tiene un orden propio (los años), se
+    // aplica sobre lo que quedó visible.
+    if (orden === 'natural') {
+      lista.sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+    }
+    if (resto) { lista.push(resto); }
+    return lista;
+  }
+
+  var SVG = 'http://www.w3.org/2000/svg';
+
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS(SVG, tag);
+    Object.keys(attrs).forEach(function (k) { el.setAttribute(k, attrs[k]); });
+    return el;
+  }
+
+  // Arco de anillo entre dos ángulos, en grados desde las 12 en punto
+  function arco(cx, cy, rExt, rInt, desde, hasta) {
+    var p = function (r, a) {
+      var rad = (a - 90) * Math.PI / 180;
+      return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+    };
+    var largo = (hasta - desde) > 180 ? 1 : 0;
+    var a1 = p(rExt, desde), a2 = p(rExt, hasta), b1 = p(rInt, hasta), b2 = p(rInt, desde);
+    return 'M' + a1 + 'A' + rExt + ',' + rExt + ' 0 ' + largo + ' 1 ' + a2 +
+           'L' + b1 + 'A' + rInt + ',' + rInt + ' 0 ' + largo + ' 0 ' + b2 + 'Z';
+  }
+
+  function dibujarAnillo(datos, total) {
+    var fig = crear('div', 'anillo');
+    var svg = svgEl('svg', { viewBox: '0 0 240 240', role: 'img' });
+    svg.setAttribute('aria-label', 'Distribución en anillo; los valores están en la leyenda y en el cuadro de detalle.');
+
+    var angulo = 0;
+    datos.forEach(function (d, i) {
+      var porcion = d[1] / total * 360;
+      // 2px de separación entre porciones, que es el fondo asomando
+      var recorte = porcion > 6 ? 1.2 : 0;
+      var path = svgEl('path', {
+        d: arco(120, 120, 100, 64, angulo + recorte, angulo + porcion - recorte),
+        fill: PALETA[i % PALETA.length],
+        'data-i': i
+      });
+      path.appendChild(svgEl('title', {})).textContent =
+        d[0] + ': ' + miles(d[1]) + ' (' + (d[1] / total * 100).toFixed(1) + '%)';
+      svg.appendChild(path);
+      angulo += porcion;
+    });
+
+    var centro = crear('div', 'anillo-centro');
+    centro.appendChild(crear('span', 'anillo-total', miles(total)));
+    centro.appendChild(crear('span', 'anillo-rotulo', total === 1 ? 'unidad' : 'unidades'));
+
+    fig.appendChild(svg);
+    fig.appendChild(centro);
+    return fig;
+  }
+
+  function dibujarLeyenda(datos, total) {
+    var ul = crear('ul', 'leyenda');
+    datos.forEach(function (d, i) {
+      var li = crear('li');
+      li.appendChild(svgEl('svg', { class: 'muestra', viewBox: '0 0 10 10', 'aria-hidden': 'true' }))
+        .appendChild(svgEl('rect', { x: 0, y: 0, width: 10, height: 10, rx: 3, fill: PALETA[i % PALETA.length] }));
+      li.appendChild(crear('span', 'leyenda-nombre', d[0]));
+      li.appendChild(crear('span', 'leyenda-valor', miles(d[1])));
+      li.appendChild(crear('span', 'leyenda-pct', (d[1] / total * 100).toFixed(1) + '%'));
+      ul.appendChild(li);
+    });
+    return ul;
+  }
+
+  // Cuadro con el anillo y los botones para cambiar de dimensión
+  function cuadroGrafico(cont, filas, dimensiones) {
+    var sec = crear('section', 'cuadro grafico');
+    sec.appendChild(crear('h3', 'titulo-cuadro', 'Composición de la flota'));
+
+    var cuerpo = crear('div', 'grafico-cuerpo');
+    var controles = crear('div', 'dimensiones');
+    controles.setAttribute('role', 'tablist');
+    controles.setAttribute('aria-label', 'Ver la composición por');
+    var lienzo = crear('div', 'grafico-lienzo');
+
+    function pintar(dim) {
+      lienzo.innerHTML = '';
+      var datos = agrupar(filas, dim.clave, dim.orden);
+      var total = datos.reduce(function (t, d) { return t + d[1]; }, 0);
+      lienzo.appendChild(dibujarAnillo(datos, total));
+      lienzo.appendChild(dibujarLeyenda(datos, total));
+    }
+
+    dimensiones.forEach(function (dim, i) {
+      var b = crear('button', 'chip-dim', dim.rotulo);
+      b.type = 'button';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        controles.querySelectorAll('.chip-dim').forEach(function (o) {
+          o.setAttribute('aria-selected', o === b ? 'true' : 'false');
+        });
+        pintar(dim);
+      });
+      controles.appendChild(b);
+    });
+
+    cuerpo.appendChild(controles);
+    cuerpo.appendChild(lienzo);
+    sec.appendChild(cuerpo);
+    cont.appendChild(sec);
+    pintar(dimensiones[0]);
+  }
+
   function kpi(cifra, rotulo, clase) {
     var c = crear('div', 'kpi' + (clase ? ' ' + clase : ''));
     c.appendChild(crear('div', 'cifra', miles(cifra)));
@@ -647,9 +795,44 @@
         miles(contar(filas, function (f) { return aNumero(celda(f, 'km')) !== null; })) +
         ' de ' + miles(total) + ').' });
 
+    // --- Composición: un anillo con la dimensión que se elija
+    var dimensiones = [
+      { clave: 'tipo', rotulo: 'Tipo' },
+      { clave: 'marca', rotulo: 'Marca' },
+      { clave: 'anio', rotulo: 'Año', orden: 'natural' },
+      { clave: 'tipoCombustible', rotulo: 'Combustible' }
+    ];
+    if (config.desglose) {
+      dimensiones.splice(2, 0, { clave: config.desglose.clave, rotulo: config.desglose.rotulo });
+    }
+    cuadroGrafico(cont, filas, dimensiones);
+
+    // --- Detalle: qué unidades componen el conjunto
+    if (config.detalle) {
+      var SEP = '\u0001';   // separador que no puede aparecer en el dato
+      var combos = {};
+      filas.forEach(function (f) {
+        var k = [celda(f, 'marca'), celda(f, 'modelo'), celda(f, 'anio')].join(SEP);
+        combos[k] = (combos[k] || 0) + 1;
+      });
+      var detalle = Object.keys(combos).map(function (k) {
+        var p = k.split(SEP);
+        return [p[0] || SIN_DATO, p[1] || SIN_DATO, p[2] || SIN_DATO, combos[k]];
+      }).sort(function (a, b) {
+        return b[3] - a[3] || (a[0] < b[0] ? -1 : 1);
+      });
+      cuadro(cont, 'Detalle de unidades',
+        ['Marca', 'Modelo', 'Año', 'Unidades'],
+        detalle,
+        ['TOTAL', '', '', total],
+        { nota: miles(detalle.length) + ' combinaciones de marca, modelo y año.' });
+    }
+
     // --- Desglose: por ministerio en la vista general, por repartición
-    //     dentro de un ministerio, por marca dentro de una repartición.
+    //     dentro de un ministerio.
     var desglose = config.desglose || { clave: 'ministerio', titulo: 'Unidades asignadas por Ministerio', rotulo: 'Ministerio' };
+    if (config.detalle) { return; }
+
     var cuenta = {};
     filas.forEach(function (f) {
       var v = celda(f, desglose.clave);
