@@ -755,9 +755,17 @@
       angulo += porcion;
     });
 
-    var centro = crear('div', 'anillo-centro');
+    // Con el gráfico interactivo, el centro hace de botón para volver al
+    // total: es donde uno mira cuando quiere salir del detalle.
+    var centro = crear(alElegir ? 'button' : 'div', 'anillo-centro');
+    if (alElegir) {
+      centro.type = 'button';
+      centro.disabled = true;
+      centro.setAttribute('aria-label', 'Volver al total de la flota');
+    }
     centro.appendChild(crear('span', 'anillo-total', miles(total)));
     centro.appendChild(crear('span', 'anillo-rotulo', total === 1 ? 'unidad' : 'unidades'));
+    centro.appendChild(crear('span', 'anillo-volver', 'Ver todo'));
 
     fig.appendChild(svg);
     fig.appendChild(centro);
@@ -817,6 +825,13 @@
         lienzo.querySelectorAll('.leyenda li').forEach(function (l, k) {
           l.classList.toggle('elegida', k === elegida);
         });
+        // El centro se enciende como botón de volver solo cuando hay algo
+        // abierto: si no, no tendría nada que hacer.
+        var centro = lienzo.querySelector('.anillo-centro');
+        if (centro) {
+          centro.disabled = elegida < 0;
+          centro.classList.toggle('activo', elegida >= 0);
+        }
         zoom.innerHTML = '';
         if (elegida < 0) { return; }
 
@@ -844,6 +859,9 @@
       }
 
       lienzo.appendChild(dibujarAnillo(datos, total, elegir));
+      lienzo.querySelector('.anillo-centro').addEventListener('click', function () {
+        if (elegida >= 0) { elegir(elegida); }
+      });
 
       var panel = crear('div', 'panel-leyenda');
       panel.appendChild(dibujarLeyenda(datos, total, elegir));

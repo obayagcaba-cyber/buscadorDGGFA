@@ -845,7 +845,36 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  /* nace como botón deshabilitado: hereda tipografía y no dibuja caja */
+  appearance: none;
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  padding: 0;
 }
+
+/* Solo es tocable cuando hay una porción abierta */
+.anillo-centro.activo {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.anillo-centro.activo:hover .anillo-total { color: var(--azul-claro); }
+.anillo-centro:focus-visible { outline: 2px solid var(--amarillo); outline-offset: 4px; border-radius: 50%; }
+
+/* La pista de "volver" aparece solo con algo abierto */
+.anillo-volver {
+  display: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--azul-claro);
+  margin-top: 6px;
+}
+
+.anillo-centro.activo .anillo-volver { display: block; }
+.anillo-volver::before { content: "↺  "; }
 
 /* Cifra grande: figuras proporcionales, no tabulares */
 .anillo-total {
