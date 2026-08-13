@@ -32,6 +32,38 @@
     return String(texto || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   }
 
+  // Para buscar por nombre: sin acentos ni mayúsculas, así "hacienda"
+  // encuentra "MHFGC - Hacienda y Finanzas".
+  function normTexto(texto) {
+    return String(texto || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  // Ministerios y reparticiones con su cantidad de unidades, para poder
+  // buscar por organismo además de por dominio.
+  var GRUPOS = [
+    { clave: 'ministerio', etiqueta: 'Ministerio',
+      desglose: { clave: 'reparticion', titulo: 'Unidades por Repartición', rotulo: 'Repartición' } },
+    { clave: 'reparticion', etiqueta: 'Repartición',
+      desglose: { clave: 'marca', titulo: 'Unidades por marca', rotulo: 'Marca' } }
+  ];
+
+  GRUPOS.forEach(function (g) {
+    var cuenta = {};
+    D.filas.forEach(function (fila) {
+      var v = celda(fila, g.clave);
+      if (esVacio(v)) { return; }
+      cuenta[v] = (cuenta[v] || 0) + 1;
+    });
+    g.valores = Object.keys(cuenta)
+      .map(function (v) { return { valor: v, norm: normTexto(v), cantidad: cuenta[v] }; })
+      .sort(function (a, b) { return b.cantidad - a.cantidad; });
+  });
+
+  function filasDe(clave, valor) {
+    return D.filas.filter(function (f) { return celda(f, clave) === valor; });
+  }
+
   /* ------------------------------------------------------------- utilidades */
 
   var SIN_DATO = '—';
@@ -218,8 +250,9 @@
   }
 
   function estadoInicial() {
-    mostrarAviso('Escribí un dominio para ver la ficha completa de la unidad. ' +
-      'La base tiene <b>' + miles(D.filas.length) + '</b> unidades cargadas al período ' + D.periodo + '.');
+    mostrarAviso('Escribí un <b>dominio</b> para ver la ficha completa de la unidad, ' +
+      'o el nombre de un <b>ministerio</b> o una <b>repartición</b> para ver su resumen de flota.<br>' +
+      'La base tiene ' + miles(D.filas.length) + ' unidades cargadas al período ' + D.periodo + '.');
   }
 
   /* --------------------------------------------------------------- búsqueda */
@@ -229,33 +262,67 @@
   var botonLimpiar = document.getElementById('limpiar');
   var seleccion = -1;
 
+  // Una sugerencia puede ser un dominio o un organismo. Se muestran juntas,
+  // cada una con su etiqueta, y el buscador resuelve según lo que se elija.
   function sugerir(texto) {
-    var q = normalizar(texto);
     lista.innerHTML = '';
     seleccion = -1;
-    if (q.length < 2) { lista.className = 'sugerencias oculto'; return; }
 
-    var empiezan = [];
-    var contienen = [];
-    porPatente.forEach(function (fila, pat) {
-      if (empiezan.length + contienen.length > 400) { return; }
-      if (pat.indexOf(q) === 0) { empiezan.push(fila); }
-      else if (pat.indexOf(q) !== -1) { contienen.push(fila); }
+    var crudo = String(texto).trim();
+    if (crudo.length < 2) { lista.className = 'sugerencias oculto'; return; }
+
+    var q = normalizar(crudo);
+    var qt = normTexto(crudo);
+    var opciones = [];
+
+    // Organismos primero: son pocos y quien los busca sabe lo que quiere
+    GRUPOS.forEach(function (g) {
+      g.valores.forEach(function (v) {
+        if (opciones.length > 60 || v.norm.indexOf(qt) === -1) { return; }
+        opciones.push({
+          grupo: g, valor: v.valor,
+          etiqueta: g.etiqueta,
+          principal: v.valor,
+          detalle: miles(v.cantidad) + (v.cantidad === 1 ? ' unidad' : ' unidades'),
+          empieza: v.norm.indexOf(qt) === 0
+        });
+      });
     });
+    opciones.sort(function (a, b) { return (b.empieza ? 1 : 0) - (a.empieza ? 1 : 0); });
+    opciones = opciones.slice(0, 5);
 
-    var res = empiezan.concat(contienen).slice(0, 8);
-    if (!res.length) { lista.className = 'sugerencias oculto'; return; }
+    // Dominios
+    if (q.length >= 2) {
+      var empiezan = [], contienen = [];
+      porPatente.forEach(function (fila, pat) {
+        if (empiezan.length + contienen.length > 400) { return; }
+        if (pat.indexOf(q) === 0) { empiezan.push(fila); }
+        else if (pat.indexOf(q) !== -1) { contienen.push(fila); }
+      });
+      empiezan.concat(contienen).slice(0, opciones.length ? 5 : 8).forEach(function (fila) {
+        var det = [celda(fila, 'marca'), celda(fila, 'modelo')]
+          .filter(function (t) { return !esVacio(t); }).join(' ');
+        opciones.push({
+          patente: celda(fila, 'patente'),
+          etiqueta: 'Dominio',
+          principal: celda(fila, 'patente'),
+          detalle: det || celda(fila, 'tipo')
+        });
+      });
+    }
 
-    res.forEach(function (fila) {
+    if (!opciones.length) { lista.className = 'sugerencias oculto'; return; }
+
+    opciones.forEach(function (op) {
       var li = crear('li');
       li.setAttribute('role', 'option');
-      li.appendChild(crear('span', 'pat', celda(fila, 'patente')));
-      var det = [celda(fila, 'marca'), celda(fila, 'modelo')]
-        .filter(function (t) { return !esVacio(t); }).join(' ');
-      li.appendChild(crear('span', 'det', det || celda(fila, 'tipo')));
+      li.appendChild(crear('span', 'tipo-sug', op.etiqueta));
+      li.appendChild(crear('span', 'pat', op.principal));
+      li.appendChild(crear('span', 'det', op.detalle));
       li.addEventListener('mousedown', function (e) {
         e.preventDefault();
-        elegir(celda(fila, 'patente'));
+        if (op.patente) { elegir(op.patente); }
+        else { elegirGrupo(op.grupo, op.valor); }
       });
       lista.appendChild(li);
     });
@@ -264,33 +331,101 @@
 
   function elegir(patente) {
     input.value = patente;
+    ajustarCampo();
     lista.className = 'sugerencias oculto';
     buscar();
     input.blur();
   }
 
-  function buscar() {
-    var q = normalizar(input.value);
-    botonLimpiar.className = input.value ? 'limpiar' : 'limpiar oculto';
+  function elegirGrupo(grupo, valor) {
+    input.value = valor;
+    ajustarCampo();
+    lista.className = 'sugerencias oculto';
+    input.blur();
+    mostrarGrupo(grupo, valor);
+  }
 
-    if (!q) { estadoInicial(); return; }
+  function enlace(hash) {
+    if (window.history.replaceState) {
+      window.history.replaceState(null, '', '#' + hash);
+    }
+  }
+
+  // Panel de un ministerio o repartición: los mismos indicadores y cuadros
+  // del resumen general, calculados solo sobre sus unidades.
+  function mostrarGrupo(grupo, valor) {
+    var filas = filasDe(grupo.clave, valor);
+    if (!filas.length) {
+      mostrarAviso('No hay unidades registradas en <b>' + valor + '</b>.', true);
+      return;
+    }
+    contAviso.className = 'oculto';
+    contFicha.innerHTML = '';
+
+    var cab = crear('div', 'ficha-cabecera grupo');
+    cab.appendChild(crear('div', 'etiqueta-grupo', grupo.etiqueta));
+    cab.appendChild(crear('div', 'nombre-grupo', valor));
+    cab.appendChild(crear('div', 'organismo-veh',
+      miles(filas.length) + (filas.length === 1 ? ' unidad asignada' : ' unidades asignadas') +
+      '  ·  ' + D.periodo));
+    contFicha.appendChild(cab);
+
+    var cuerpo = crear('div', 'resumen-grupo');
+    contFicha.appendChild(cuerpo);
+    armarResumen(cuerpo, filas, { desglose: grupo.desglose });
+
+    enlace(grupo.clave + '=' + encodeURIComponent(valor));
+  }
+
+  // Coincidencia exacta de organismo, para que escribir el nombre completo
+  // y apretar Enter funcione igual que elegirlo de la lista.
+  function grupoExacto(texto) {
+    var qt = normTexto(String(texto).trim());
+    for (var i = 0; i < GRUPOS.length; i++) {
+      var encontrado = null;
+      GRUPOS[i].valores.forEach(function (v) {
+        if (v.norm === qt) { encontrado = v.valor; }
+      });
+      if (encontrado) { return { grupo: GRUPOS[i], valor: encontrado }; }
+    }
+    return null;
+  }
+
+  function buscar() {
+    var crudo = input.value;
+    var q = normalizar(crudo);
+    botonLimpiar.className = crudo ? 'limpiar' : 'limpiar oculto';
+
+    if (!crudo.trim()) { estadoInicial(); return; }
 
     var fila = porPatente.get(q);
     if (fila) {
       mostrarFicha(fila);
       // deja el dominio en la URL para poder compartir el link de una unidad
-      if (window.history.replaceState) {
-        window.history.replaceState(null, '', '#' + celda(fila, 'patente'));
-      }
+      enlace(celda(fila, 'patente'));
       return;
     }
-    mostrarAviso('No encontramos el dominio <b>' + input.value.toUpperCase() +
-      '</b> en la base de ' + D.periodo + '.<br>Revisá que esté bien escrito o probá con las primeras letras.', true);
+
+    var g = grupoExacto(crudo);
+    if (g) { mostrarGrupo(g.grupo, g.valor); return; }
+
+    mostrarAviso('No encontramos <b>' + crudo.toUpperCase() +
+      '</b> en la base de ' + D.periodo + '.<br>' +
+      'Probá con un dominio, o con el nombre de un ministerio o una repartición.', true);
+  }
+
+  // Una patente entra holgada en mayúsculas espaciadas; el nombre de un
+  // organismo, no. El campo cambia de registro según lo que se escriba.
+  function ajustarCampo() {
+    var v = input.value;
+    var esNombre = v.indexOf(' ') !== -1 || v.length > 9 || /[a-z]{4,}/.test(v);
+    input.className = esNombre ? 'texto-largo' : '';
   }
 
   input.addEventListener('input', function () {
+    ajustarCampo();
     sugerir(input.value);
-    if (normalizar(input.value).length >= 6) { buscar(); }
+    if (normalizar(input.value).length >= 6 && porPatente.has(normalizar(input.value))) { buscar(); }
     else { botonLimpiar.className = input.value ? 'limpiar' : 'limpiar oculto'; }
   });
 
@@ -339,9 +474,11 @@
     'MOTO ELÉCTRICA'
   ];
 
-  function contar(prueba) {
+  // Cuenta sobre el conjunto que se le pase: la base entera para el resumen
+  // general, o solo las unidades de un ministerio o repartición.
+  function contar(conjunto, prueba) {
     var n = 0;
-    D.filas.forEach(function (fila) { if (prueba(fila)) { n++; } });
+    conjunto.forEach(function (fila) { if (prueba(fila)) { n++; } });
     return n;
   }
 
@@ -398,46 +535,72 @@
     return total;
   }
 
-  function armarResumen() {
-    var cont = document.getElementById('resumen-cuerpo');
+  function enRango(fila, min, max) {
+    var km = aNumero(celda(fila, 'km'));
+    if (km === null) { return false; }
+    return km > min && km <= max;
+  }
+
+  function kpi(cifra, rotulo, clase) {
+    var c = crear('div', 'kpi' + (clase ? ' ' + clase : ''));
+    c.appendChild(crear('div', 'cifra', miles(cifra)));
+    c.appendChild(crear('div', 'rotulo', rotulo));
+    return c;
+  }
+
+  /* Arma el juego completo de indicadores y cuadros sobre el conjunto de
+     unidades que reciba. Lo usan tanto el resumen general como el de un
+     ministerio o una repartición: los números salen del mismo cálculo.
+
+     config.desglose : {clave, titulo, rotulo} del último cuadro
+     config.general  : true en la vista de toda la flota */
+  function armarResumen(cont, filas, config) {
+    config = config || {};
     cont.innerHTML = '';
 
-    var totalFlota = D.filas.length;
-    var totalPoliza = contar(function (f) { return marcada(f, 'poliza'); });
-    var totalAntic = contar(function (f) { return marcada(f, 'anticuacion'); });
-    var totalPatrim = contar(function (f) { return marcada(f, 'patrimonial'); });
-
-    // --- KPIs
-    var kpis = crear('div', 'kpis');
-    function kpi(cifra, rotulo, clase) {
-      var c = crear('div', 'kpi' + (clase ? ' ' + clase : ''));
-      c.appendChild(crear('div', 'cifra', miles(cifra)));
-      c.appendChild(crear('div', 'rotulo', rotulo));
-      return c;
+    var total = filas.length;
+    if (!total) {
+      cont.appendChild(crear('p', 'nota', 'No hay unidades para mostrar.'));
+      return;
     }
-    kpis.appendChild(kpi(totalFlota, 'Flota automotor', 'protagonista'));
-    kpis.appendChild(kpi(totalPoliza, 'Póliza de Seguros DGGFA informada al 30-3-26'));
-    kpis.appendChild(kpi(totalAntic, 'Anticuación ' + D.periodo + ' (activos)'));
-    kpis.appendChild(kpi(totalPatrim, 'Inst. Patrimonial sin cobertura', 'menta'));
+
+    // En una vista filtrada no tiene sentido listar tipos sin ninguna unidad
+    var tipos = config.general ? TIPOS : TIPOS.filter(function (t) {
+      return contar(filas, function (f) { return esTipo(f, t); }) > 0;
+    });
+
+    // --- Indicadores
+    var kpis = crear('div', 'kpis');
+    kpis.appendChild(kpi(total, config.general ? 'Flota automotor' : 'Unidades asignadas', 'protagonista'));
+    kpis.appendChild(kpi(contar(filas, function (f) { return marcada(f, 'poliza'); }),
+      'Póliza de Seguros DGGFA informada al 30-3-26'));
+    kpis.appendChild(kpi(contar(filas, function (f) { return marcada(f, 'anticuacion'); }),
+      'Anticuación ' + D.periodo + ' (activos)'));
+    kpis.appendChild(kpi(contar(filas, function (f) { return marcada(f, 'patrimonial'); }),
+      'Inst. Patrimonial sin cobertura', 'menta'));
     cont.appendChild(kpis);
 
-    cont.appendChild(crear('p', 'nota',
-      'Referencia — Registro Nacional del Parque Automotor: 3.561 unidades. ' +
-      'El total de flota incluye unidades contabilizadas doble por poseer el mismo servicio.'));
+    if (config.general) {
+      cont.appendChild(crear('p', 'nota',
+        'Referencia — Registro Nacional del Parque Automotor: 3.561 unidades. ' +
+        'El total de flota incluye unidades contabilizadas doble por poseer el mismo servicio.'));
+    }
 
     // --- Unidades por tipo
-    var porTipo = TIPOS.map(function (tipo) {
+    var porTipo = tipos.map(function (tipo) {
       return [
         tipo,
-        contar(function (f) { return esTipo(f, tipo); }),
-        contar(function (f) { return esTipo(f, tipo) && marcada(f, 'poliza'); }),
-        contar(function (f) { return esTipo(f, tipo) && marcada(f, 'anticuacion'); }),
-        contar(function (f) { return esTipo(f, tipo) && marcada(f, 'patrimonial'); })
+        contar(filas, function (f) { return esTipo(f, tipo); }),
+        contar(filas, function (f) { return esTipo(f, tipo) && marcada(f, 'poliza'); }),
+        contar(filas, function (f) { return esTipo(f, tipo) && marcada(f, 'anticuacion'); }),
+        contar(filas, function (f) { return esTipo(f, tipo) && marcada(f, 'patrimonial'); })
       ];
     });
-    // Aviso de trazabilidad: si la DGGFA ajustó datos respecto de la planilla,
-    // el cuadro lo dice en vez de mostrar un número sin explicación.
-    var ajustadas = Object.keys(D.correcciones || {}).length;
+    // Si la DGGFA ajustó datos respecto de la planilla, el cuadro lo dice en
+    // vez de mostrar un número sin explicación.
+    var ajustadas = contar(filas, function (f) {
+      return !!(D.correcciones || {})[celda(f, 'patente')];
+    });
     cuadro(cont, 'Unidades por tipo de vehículo',
       ['Tipo', 'Total', 'Póliza DGGFA', 'Anticuación', 'Inst. Patrimonial'],
       porTipo,
@@ -449,35 +612,31 @@
           : null });
 
     // --- Servicios por tipo
-    var porServicio = TIPOS.map(function (tipo) {
+    var porServicio = tipos.map(function (tipo) {
       return [
         tipo,
-        contar(function (f) { return esTipo(f, tipo) && activo(f, 'combustible'); }),
-        contar(function (f) { return esTipo(f, tipo) && activo(f, 'telemetria'); }),
-        contar(function (f) { return esTipo(f, tipo) && activo(f, 'mantenimiento'); }),
-        contar(function (f) {
+        contar(filas, function (f) { return esTipo(f, tipo) && activo(f, 'combustible'); }),
+        contar(filas, function (f) { return esTipo(f, tipo) && activo(f, 'telemetria'); }),
+        contar(filas, function (f) { return esTipo(f, tipo) && activo(f, 'mantenimiento'); }),
+        contar(filas, function (f) {
           return esTipo(f, tipo) && activo(f, 'combustible') && activo(f, 'telemetria') && activo(f, 'mantenimiento');
         })
       ];
     });
+    var electricas = contar(filas, function (f) { return celda(f, 'combustible').toUpperCase() === 'ELÉCTRICO'; });
     cuadro(cont, 'Servicios por tipo de vehículo',
       ['Tipo', 'Combustible', 'Telemetría', 'Mantenimiento', 'Los 3 servicios'],
       porServicio,
       ['TOTAL'].concat(sumaColumnas(porServicio).slice(1)),
-      { nota: 'Combustible incluye las ' +
-        miles(contar(function (f) { return celda(f, 'combustible').toUpperCase() === 'ELÉCTRICO'; })) +
-        ' unidades con carga eléctrica asignada.' });
+      { nota: electricas
+          ? 'Combustible incluye las ' + miles(electricas) + ' unidades con carga eléctrica asignada.'
+          : null });
 
     // --- Kilometraje
-    function enRango(fila, min, max) {
-      var km = aNumero(celda(fila, 'km'));
-      if (km === null) { return false; }
-      return km > min && km <= max;
-    }
-    var porKm = TIPOS.map(function (tipo) {
-      var a = contar(function (f) { return esTipo(f, tipo) && enRango(f, -1, 50000); });
-      var b = contar(function (f) { return esTipo(f, tipo) && enRango(f, 50000, 100000); });
-      var c = contar(function (f) { return esTipo(f, tipo) && enRango(f, 100000, Infinity); });
+    var porKm = tipos.map(function (tipo) {
+      var a = contar(filas, function (f) { return esTipo(f, tipo) && enRango(f, -1, 50000); });
+      var b = contar(filas, function (f) { return esTipo(f, tipo) && enRango(f, 50000, 100000); });
+      var c = contar(filas, function (f) { return esTipo(f, tipo) && enRango(f, 100000, Infinity); });
       return [tipo, a, b, c, a + b + c];
     });
     cuadro(cont, 'Kilometraje',
@@ -485,25 +644,33 @@
       porKm,
       ['TOTAL'].concat(sumaColumnas(porKm).slice(1)),
       { nota: 'Solo se cuentan las unidades con kilometraje cargado (' +
-        miles(contar(function (f) { return aNumero(celda(f, 'km')) !== null; })) +
-        ' de ' + miles(totalFlota) + ').' });
+        miles(contar(filas, function (f) { return aNumero(celda(f, 'km')) !== null; })) +
+        ' de ' + miles(total) + ').' });
 
-    // --- Ministerios
+    // --- Desglose: por ministerio en la vista general, por repartición
+    //     dentro de un ministerio, por marca dentro de una repartición.
+    var desglose = config.desglose || { clave: 'ministerio', titulo: 'Unidades asignadas por Ministerio', rotulo: 'Ministerio' };
     var cuenta = {};
-    D.filas.forEach(function (f) {
-      var m = celda(f, 'ministerio');
-      if (esVacio(m)) { return; }
-      cuenta[m] = (cuenta[m] || 0) + 1;
+    filas.forEach(function (f) {
+      var v = celda(f, desglose.clave);
+      if (esVacio(v)) { return; }
+      cuenta[v] = (cuenta[v] || 0) + 1;
     });
-    var porMinisterio = Object.keys(cuenta)
-      .map(function (m) { return [m, cuenta[m]]; })
+    var porGrupo = Object.keys(cuenta)
+      .map(function (v) { return [v, cuenta[v]]; })
       .sort(function (a, b) { return b[1] - a[1]; });
-    cuadro(cont, 'Unidades asignadas por Ministerio',
-      ['Ministerio', 'Unidades'],
-      porMinisterio,
-      ['TOTAL GENERAL'].concat(sumaColumnas(porMinisterio).slice(1)),
-      { nota: 'No incluye ' + miles(totalFlota - sumaColumnas(porMinisterio)[1]) +
-        ' unidades sin ministerio asignado en la base.' });
+
+    if (porGrupo.length) {
+      var asignadas = sumaColumnas(porGrupo)[1];
+      cuadro(cont, desglose.titulo,
+        [desglose.rotulo, 'Unidades'],
+        porGrupo,
+        ['TOTAL'].concat([asignadas]),
+        { nota: total - asignadas
+            ? 'No incluye ' + miles(total - asignadas) + ' unidades sin ' +
+              desglose.rotulo.toLowerCase() + ' asignado en la base.'
+            : null });
+    }
   }
 
   /* --------------------------------------------------------------- solapas */
@@ -526,11 +693,25 @@
   document.querySelectorAll('.js-periodo').forEach(function (el) { el.textContent = D.periodo; });
   if (D.actualizado) { document.getElementById('actualizado').textContent = D.actualizado; }
 
-  armarResumen();
+  armarResumen(document.getElementById('resumen-cuerpo'), D.filas, { general: true });
 
-  var inicial = decodeURIComponent(window.location.hash.replace('#', ''));
-  if (inicial && porPatente.has(normalizar(inicial))) {
-    input.value = inicial.toUpperCase();
+  // El hash puede traer un dominio (#AB766UL) o un organismo
+  // (#ministerio=MHFGC%20-%20Hacienda%20y%20Finanzas)
+  var inicial = window.location.hash.replace('#', '');
+  var corte = inicial.indexOf('=');
+  var claveHash = corte > 0 ? inicial.slice(0, corte) : '';
+  var valorHash = corte > 0 ? decodeURIComponent(inicial.slice(corte + 1)) : decodeURIComponent(inicial);
+
+  var grupoInicial = null;
+  GRUPOS.forEach(function (g) {
+    if (g.clave === claveHash && filasDe(g.clave, valorHash).length) { grupoInicial = g; }
+  });
+
+  if (grupoInicial) {
+    input.value = valorHash;
+    mostrarGrupo(grupoInicial, valorHash);
+  } else if (valorHash && porPatente.has(normalizar(valorHash))) {
+    input.value = valorHash.toUpperCase();
     buscar();
   } else {
     estadoInicial();

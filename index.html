@@ -42,16 +42,17 @@
     <div class="contenedor">
 
       <div class="bloque-busqueda">
-        <h2><span>Consultá una unidad</span></h2>
+        <h2><span>Consultá una unidad</span> <span>o un organismo</span></h2>
         <p class="bajada">
-          Escribí el dominio y vas a ver la ficha completa: identificación, asignación,
-          servicios activos, estado administrativo y póliza. Datos al período
-          <b class="js-periodo">—</b>.
+          Escribí un <b>dominio</b> y vas a ver la ficha completa de la unidad: identificación,
+          asignación, servicios activos, estado administrativo y póliza.
+          Escribí un <b>ministerio</b> o una <b>repartición</b> y vas a ver el resumen de su flota.
+          Datos al período <b class="js-periodo">—</b>.
         </p>
         <div class="campo">
           <input id="patente" type="text" inputmode="text" autocomplete="off"
-                 autocapitalize="characters" spellcheck="false"
-                 placeholder="AB766UL" aria-label="Dominio o patente">
+                 autocapitalize="off" spellcheck="false"
+                 placeholder="AB766UL, Hacienda, SAME…" aria-label="Dominio, ministerio o repartición">
           <button id="limpiar" class="limpiar oculto" type="button" aria-label="Limpiar">&times;</button>
           <ul id="sugerencias" class="sugerencias oculto" role="listbox"></ul>
         </div>
