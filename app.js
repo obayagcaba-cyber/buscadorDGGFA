@@ -39,15 +39,29 @@
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
-  // Ministerios y reparticiones con su cantidad de unidades, para poder
-  // buscar por organismo además de por dominio.
+  // El nivel intermedio existe solo si jerarquia.xlsx está cargado. Sin él,
+  // un ministerio se desglosa directo en reparticiones.
+  var HAY_SECRETARIA = D.claves.indexOf('secretaria') !== -1 &&
+    D.filas.some(function (f) { return !esVacio(celda(f, 'secretaria')); });
+
+  var DESGLOSE_REPARTICION = { clave: 'reparticion', titulo: 'Unidades por Repartición', rotulo: 'Repartición' };
+  var DESGLOSE_SECRETARIA = { clave: 'secretaria', titulo: 'Unidades por Secretaría / Subsecretaría', rotulo: 'Secretaría / Subsecretaría' };
+
+  // Ministerios, secretarías y reparticiones con su cantidad de unidades,
+  // para poder buscar por organismo además de por dominio.
   var GRUPOS = [
     { clave: 'ministerio', etiqueta: 'Ministerio',
-      desglose: { clave: 'reparticion', titulo: 'Unidades por Repartición', rotulo: 'Repartición' } },
-    // En una repartición no hay nivel siguiente: en vez de un desglose va el
-    // detalle de las unidades que la componen.
-    { clave: 'reparticion', etiqueta: 'Repartición', detalle: true }
+      desglose: HAY_SECRETARIA ? DESGLOSE_SECRETARIA : DESGLOSE_REPARTICION }
   ];
+
+  if (HAY_SECRETARIA) {
+    GRUPOS.push({ clave: 'secretaria', etiqueta: 'Secretaría / Subsecretaría',
+                  desglose: DESGLOSE_REPARTICION });
+  }
+
+  // En una repartición no hay nivel siguiente: en vez de un desglose va el
+  // detalle de las unidades que la componen.
+  GRUPOS.push({ clave: 'reparticion', etiqueta: 'Repartición', detalle: true });
 
   GRUPOS.forEach(function (g) {
     var cuenta = {};
@@ -956,6 +970,11 @@
       { fn: antiguedad, rotulo: 'Antigüedad', orden: TRAMOS_ANTIGUEDAD },
       { clave: 'tipoCombustible', rotulo: 'Combustible' }
     ];
+    // En la vista general, mirar la flota por secretaría es tan útil como
+    // por ministerio, así que se ofrece además del desglose de abajo.
+    if (config.general && HAY_SECRETARIA) {
+      dimensiones.splice(3, 0, { clave: 'secretaria', rotulo: 'Secretaría' });
+    }
     if (config.desglose) {
       dimensiones.splice(2, 0, { clave: config.desglose.clave, rotulo: config.desglose.rotulo });
     }
