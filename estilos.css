@@ -683,6 +683,29 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
 
 .marca-hijos { background: rgba(29, 51, 67, .03); }
 
+/* Cada escalón entra un poco más y pesa un poco menos que el de arriba */
+.marca-fila.nivel-1 {
+  padding-left: 30px;
+  min-height: 40px;
+  background: rgba(29, 51, 67, .03);
+}
+
+/* Con la sangría, un nombre de repartición no entra en una línea de celular:
+   se deja envolver en vez de recortarlo con puntos suspensivos. */
+.marca-fila.nivel-1 .marca-nombre {
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: normal;
+  line-height: 1.25;
+  padding: 6px 0;
+}
+.marca-fila.nivel-1 .marca-cant { font-size: 13px; }
+.marca-fila.nivel-1 .marca-relleno { background: rgba(3, 92, 128, .10); }
+.marca-fila.nivel-1[aria-expanded="true"] { background: rgba(3, 92, 128, .07); }
+.marca-fila.nivel-1 + .marca-hijos { background: rgba(29, 51, 67, .05); }
+
+.hijo.nivel-2 { padding-left: 46px; }
+
 .ver-mas {
   width: 100%;
   appearance: none;
@@ -710,7 +733,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
   border-top: 1px solid rgba(29, 51, 67, .07);
 }
 
-.hijo-modelo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hijo-modelo { overflow-wrap: anywhere; line-height: 1.3; }
 .hijo-anio { color: var(--azul-claro); font-variant-numeric: tabular-nums; }
 
 .hijo-cant {
