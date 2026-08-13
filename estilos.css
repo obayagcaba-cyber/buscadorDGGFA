@@ -459,36 +459,41 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
 .kpi.menta { background: var(--menta-fondo); color: var(--azul-oscuro); }
 .kpi.menta .cifra { color: var(--azul-oscuro); }
 
-.subtitulo-tabla {
-  font-size: 13px;
+/* ---------------------------------------------------------------- cuadros
+
+   Cada cuadro es una pieza cerrada: barra de titulo, encabezados, datos y
+   fila de totales. La barra azul claro sobre la placa azul oscuro es el
+   patron de header de seccion del manual. */
+
+.cuadro { margin-top: 30px; }
+
+.titulo-cuadro {
+  background: var(--azul-claro);
+  color: var(--blanco);
+  font-size: 15px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .07em;
-  color: var(--azul-claro);
-  margin: 26px 0 9px;
+  letter-spacing: .10em;
   text-align: center;
+  padding: 14px 16px 13px;
+  border-radius: var(--radio) var(--radio) 0 0;
+  text-wrap: balance;
 }
 
-/* El analisis principal del tablero: escala mayor y subrayado amarillo,
-   que es el unico recurso de destaque que habilita el manual. */
-.subtitulo-tabla.principal {
-  font-size: 17px;
-  color: var(--azul-oscuro);
-  margin-top: 30px;
-  padding-bottom: 9px;
-  position: relative;
+/* El analisis principal del tablero: mas escala y el filo amarillo, que es
+   el unico recurso de destaque que habilita el manual. */
+.cuadro.principal { margin-top: 34px; }
+
+.cuadro.principal .titulo-cuadro {
+  font-size: 18px;
+  border-top: 4px solid var(--amarillo);
+  padding-top: 15px;
 }
 
-.subtitulo-tabla.principal::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: 56px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--amarillo);
+/* La tabla se acopla a la barra: el cuadro se lee como un bloque unico */
+.cuadro .marco-tabla {
+  border-top: 0;
+  border-radius: 0 0 var(--radio) var(--radio);
 }
 
 .marco-tabla {
@@ -500,17 +505,18 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
 
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 
-/* Todo centrado, columna de rotulos incluida. Las cifras usan cifras de
-   ancho fijo para que las columnas sigan leyendose alineadas. */
+/* Las cifras van centradas y con ancho de digito fijo, para que las
+   columnas se lean alineadas igual. Los encabezados comparten tamano con la
+   fila de totales: ninguna de las dos filas pesa mas que la otra. */
 thead th {
   background: var(--azul-oscuro);
   color: var(--blanco);
   font-weight: 500;
-  font-size: 11.5px;
+  font-size: 13.5px;
   text-transform: uppercase;
-  letter-spacing: .05em;
+  letter-spacing: .04em;
   text-align: center;
-  padding: 10px 12px;
+  padding: 11px 12px;
   white-space: nowrap;
 }
 
@@ -521,22 +527,28 @@ tbody td {
   font-variant-numeric: tabular-nums;
 }
 
-tbody td:first-child { font-weight: 500; min-width: 168px; }
-
-/* Los tipos de vehiculo van siempre en mayuscula, sin tocar el dato */
-table.por-tipo tbody td:first-child { text-transform: uppercase; }
-
 tbody tr:nth-child(even) { background: rgba(29, 51, 67, .03); }
 
 tfoot td {
   background: var(--azul-oscuro);
   color: var(--amarillo);
   font-weight: 700;
+  font-size: 13.5px;
   padding: 11px 12px;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
+/* La columna de rotulos, en las tres filas, va a la izquierda y en
+   mayusculas: es el eje de lectura de todos los cuadros. */
+thead th:first-child,
+tbody td:first-child,
+tfoot td:first-child {
+  text-align: left;
+  text-transform: uppercase;
+}
+
+tbody td:first-child { font-weight: 500; min-width: 168px; }
 tfoot td:first-child { color: var(--blanco); }
 
 .nota {
@@ -623,9 +635,12 @@ tfoot td:first-child { color: var(--blanco); }
   .kpi .rotulo { font-size: 12px; }
 
   .titulo-panel { font-size: 30px; }
-  .subtitulo-tabla { font-size: 14px; margin-top: 34px; }
-  .subtitulo-tabla.principal { font-size: 20px; margin-top: 40px; }
+  .cuadro { margin-top: 36px; }
+  .cuadro.principal { margin-top: 42px; }
+  .titulo-cuadro { font-size: 16px; padding: 16px; }
+  .cuadro.principal .titulo-cuadro { font-size: 21px; }
   table { font-size: 14px; }
+  thead th, tfoot td { font-size: 14px; }
 }
 
 @media print {

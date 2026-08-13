@@ -343,11 +343,16 @@
   function activo(fila, clave) { return !esVacio(celda(fila, clave)); }
   function esTipo(fila, tipo) { return celda(fila, 'tipo') === tipo; }
 
-  // clase: 'por-tipo' cuando la primera columna lista tipos de vehículo,
-  // que van siempre en mayúscula.
-  function tabla(contenedor, encabezados, filas, pie, clase) {
+  // Un cuadro = barra de título + encabezados + datos + fila de totales.
+  // opciones: {principal: true} para el análisis destacado, {nota: '...'}
+  // para la aclaración al pie.
+  function cuadro(contenedor, titulo, encabezados, filas, pie, opciones) {
+    opciones = opciones || {};
+    var sec = crear('section', 'cuadro' + (opciones.principal ? ' principal' : ''));
+    sec.appendChild(crear('h3', 'titulo-cuadro', titulo));
+
     var marco = crear('div', 'marco-tabla');
-    var t = crear('table', clase || null);
+    var t = crear('table');
 
     var thead = crear('thead');
     var tr = crear('tr');
@@ -374,7 +379,9 @@
     }
 
     marco.appendChild(t);
-    contenedor.appendChild(marco);
+    sec.appendChild(marco);
+    if (opciones.nota) { sec.appendChild(crear('p', 'nota', opciones.nota)); }
+    contenedor.appendChild(sec);
   }
 
   function sumaColumnas(filas) {
@@ -413,7 +420,6 @@
       'El total de flota incluye unidades contabilizadas doble por poseer el mismo servicio.'));
 
     // --- Unidades por tipo
-    cont.appendChild(crear('h3', 'subtitulo-tabla principal', 'Unidades por tipo de vehículo'));
     var porTipo = TIPOS.map(function (tipo) {
       return [
         tipo,
@@ -423,14 +429,13 @@
         contar(function (f) { return esTipo(f, tipo) && marcada(f, 'patrimonial'); })
       ];
     });
-    tabla(cont,
+    cuadro(cont, 'Unidades por tipo de vehículo',
       ['Tipo', 'Total', 'Póliza DGGFA', 'Anticuación', 'Inst. Patrimonial'],
       porTipo,
       ['TOTAL'].concat(sumaColumnas(porTipo).slice(1)),
-      'por-tipo');
+      { principal: true });
 
     // --- Servicios por tipo
-    cont.appendChild(crear('h3', 'subtitulo-tabla', 'Servicios por tipo de vehículo'));
     var porServicio = TIPOS.map(function (tipo) {
       return [
         tipo,
@@ -442,18 +447,15 @@
         })
       ];
     });
-    tabla(cont,
+    cuadro(cont, 'Servicios por tipo de vehículo',
       ['Tipo', 'Combustible', 'Telemetría', 'Mantenimiento', 'Los 3 servicios'],
       porServicio,
       ['TOTAL'].concat(sumaColumnas(porServicio).slice(1)),
-      'por-tipo');
-    cont.appendChild(crear('p', 'nota',
-      'Combustible incluye las ' +
-      miles(contar(function (f) { return celda(f, 'combustible').toUpperCase() === 'ELÉCTRICO'; })) +
-      ' unidades con carga eléctrica asignada.'));
+      { nota: 'Combustible incluye las ' +
+        miles(contar(function (f) { return celda(f, 'combustible').toUpperCase() === 'ELÉCTRICO'; })) +
+        ' unidades con carga eléctrica asignada.' });
 
     // --- Kilometraje
-    cont.appendChild(crear('h3', 'subtitulo-tabla', 'Kilometraje'));
     function enRango(fila, min, max) {
       var km = aNumero(celda(fila, 'km'));
       if (km === null) { return false; }
@@ -465,17 +467,15 @@
       var c = contar(function (f) { return esTipo(f, tipo) && enRango(f, 100000, Infinity); });
       return [tipo, a, b, c, a + b + c];
     });
-    tabla(cont,
+    cuadro(cont, 'Kilometraje',
       ['Tipo', 'Hasta 50.000 km', 'De 50.000 a 100.000', 'Más de 100.000', 'Total'],
       porKm,
       ['TOTAL'].concat(sumaColumnas(porKm).slice(1)),
-      'por-tipo');
-    cont.appendChild(crear('p', 'nota',
-      'Solo se cuentan las unidades con kilometraje cargado (' +
-      miles(contar(function (f) { return aNumero(celda(f, 'km')) !== null; })) + ' de ' + miles(totalFlota) + ').'));
+      { nota: 'Solo se cuentan las unidades con kilometraje cargado (' +
+        miles(contar(function (f) { return aNumero(celda(f, 'km')) !== null; })) +
+        ' de ' + miles(totalFlota) + ').' });
 
     // --- Ministerios
-    cont.appendChild(crear('h3', 'subtitulo-tabla', 'Unidades asignadas por Ministerio'));
     var cuenta = {};
     D.filas.forEach(function (f) {
       var m = celda(f, 'ministerio');
@@ -485,13 +485,12 @@
     var porMinisterio = Object.keys(cuenta)
       .map(function (m) { return [m, cuenta[m]]; })
       .sort(function (a, b) { return b[1] - a[1]; });
-    tabla(cont,
+    cuadro(cont, 'Unidades asignadas por Ministerio',
       ['Ministerio', 'Unidades'],
       porMinisterio,
-      ['TOTAL GENERAL'].concat(sumaColumnas(porMinisterio).slice(1)));
-    cont.appendChild(crear('p', 'nota',
-      'No incluye ' + miles(totalFlota - sumaColumnas(porMinisterio)[1]) +
-      ' unidades sin ministerio asignado en la base.'));
+      ['TOTAL GENERAL'].concat(sumaColumnas(porMinisterio).slice(1)),
+      { nota: 'No incluye ' + miles(totalFlota - sumaColumnas(porMinisterio)[1]) +
+        ' unidades sin ministerio asignado en la base.' });
   }
 
   /* --------------------------------------------------------------- solapas */
