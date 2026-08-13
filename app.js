@@ -689,6 +689,106 @@
     pintar(dimensiones[0]);
   }
 
+  /* -------------------------------------------------- detalle de unidades
+
+     Una repartición grande tiene decenas de combinaciones de marca, modelo y
+     año: en una tabla plana eso son cuarenta y pico de filas ilegibles. Acá
+     se ve una línea por marca, con su barra de proporción, y cada una se
+     abre para mostrar sus modelos. Arranca cerrado. */
+  var SEP = '\u0001';   // separador que no puede aparecer dentro de un dato
+
+  function cuadroDetalle(cont, filas, total) {
+    var marcas = {};
+    filas.forEach(function (f) {
+      var marca = celda(f, 'marca');
+      var modelo = celda(f, 'modelo');
+      var anio = celda(f, 'anio');
+      marca = esVacio(marca) ? 'Sin marca' : marca;
+      if (!marcas[marca]) { marcas[marca] = { total: 0, modelos: {} }; }
+      marcas[marca].total++;
+      var k = (esVacio(modelo) ? SIN_DATO : modelo) + SEP + (esVacio(anio) ? SIN_DATO : anio);
+      marcas[marca].modelos[k] = (marcas[marca].modelos[k] || 0) + 1;
+    });
+
+    var lista = Object.keys(marcas)
+      .map(function (m) { return { marca: m, datos: marcas[m] }; })
+      .sort(function (a, b) { return b.datos.total - a.datos.total; });
+
+    var modelosDistintos = lista.reduce(function (t, x) {
+      return t + Object.keys(x.datos.modelos).length;
+    }, 0);
+
+    var sec = crear('section', 'cuadro');
+    sec.appendChild(crear('h3', 'titulo-cuadro', 'Detalle de unidades'));
+
+    var caja = crear('div', 'detalle');
+
+    var barra = crear('div', 'detalle-barra');
+    barra.appendChild(crear('span', 'detalle-resumen',
+      miles(lista.length) + (lista.length === 1 ? ' marca' : ' marcas') + '  ·  ' +
+      miles(modelosDistintos) + (modelosDistintos === 1 ? ' modelo' : ' modelos')));
+    var alternar = crear('button', 'chip-dim', 'Abrir todo');
+    alternar.type = 'button';
+    barra.appendChild(alternar);
+    caja.appendChild(barra);
+
+    var filasMarca = [];
+    lista.forEach(function (item) {
+      var pct = item.datos.total / total * 100;
+
+      var cabeza = crear('button', 'marca-fila');
+      cabeza.type = 'button';
+      cabeza.setAttribute('aria-expanded', 'false');
+
+      // La proporción va de fondo de la fila, no en un renglón aparte: así
+      // cada marca ocupa una sola línea y quince entran de un vistazo.
+      var relleno = crear('span', 'marca-relleno');
+      relleno.style.width = Math.max(pct, 1.2) + '%';
+      cabeza.appendChild(relleno);
+
+      cabeza.appendChild(crear('span', 'marca-flecha', '›'));
+      cabeza.appendChild(crear('span', 'marca-nombre', item.marca));
+      cabeza.appendChild(crear('span', 'marca-cant', miles(item.datos.total)));
+      cabeza.appendChild(crear('span', 'marca-pct', pct.toFixed(1) + '%'));
+
+      var hijos = crear('div', 'marca-hijos');
+      hijos.hidden = true;
+      Object.keys(item.datos.modelos)
+        .map(function (k) { return [k.split(SEP), item.datos.modelos[k]]; })
+        .sort(function (a, b) { return b[1] - a[1]; })
+        .forEach(function (m) {
+          var h = crear('div', 'hijo');
+          h.appendChild(crear('span', 'hijo-modelo', m[0][0]));
+          h.appendChild(crear('span', 'hijo-anio', m[0][1]));
+          h.appendChild(crear('span', 'hijo-cant', miles(m[1])));
+          hijos.appendChild(h);
+        });
+
+      cabeza.addEventListener('click', function () {
+        var abierto = cabeza.getAttribute('aria-expanded') === 'true';
+        cabeza.setAttribute('aria-expanded', abierto ? 'false' : 'true');
+        hijos.hidden = abierto;
+      });
+
+      filasMarca.push({ cabeza: cabeza, hijos: hijos });
+      caja.appendChild(cabeza);
+      caja.appendChild(hijos);
+    });
+
+    alternar.addEventListener('click', function () {
+      var abrir = alternar.textContent === 'Abrir todo';
+      filasMarca.forEach(function (f) {
+        f.cabeza.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+        f.hijos.hidden = !abrir;
+      });
+      alternar.textContent = abrir ? 'Cerrar todo' : 'Abrir todo';
+    });
+
+    sec.appendChild(caja);
+    sec.appendChild(crear('p', 'nota', 'Tocá una marca para ver sus modelos y años.'));
+    cont.appendChild(sec);
+  }
+
   function kpi(cifra, rotulo, clase) {
     var c = crear('div', 'kpi' + (clase ? ' ' + clase : ''));
     c.appendChild(crear('div', 'cifra', miles(cifra)));
@@ -807,26 +907,8 @@
     }
     cuadroGrafico(cont, filas, dimensiones);
 
-    // --- Detalle: qué unidades componen el conjunto
-    if (config.detalle) {
-      var SEP = '\u0001';   // separador que no puede aparecer en el dato
-      var combos = {};
-      filas.forEach(function (f) {
-        var k = [celda(f, 'marca'), celda(f, 'modelo'), celda(f, 'anio')].join(SEP);
-        combos[k] = (combos[k] || 0) + 1;
-      });
-      var detalle = Object.keys(combos).map(function (k) {
-        var p = k.split(SEP);
-        return [p[0] || SIN_DATO, p[1] || SIN_DATO, p[2] || SIN_DATO, combos[k]];
-      }).sort(function (a, b) {
-        return b[3] - a[3] || (a[0] < b[0] ? -1 : 1);
-      });
-      cuadro(cont, 'Detalle de unidades',
-        ['Marca', 'Modelo', 'Año', 'Unidades'],
-        detalle,
-        ['TOTAL', '', '', total],
-        { nota: miles(detalle.length) + ' combinaciones de marca, modelo y año.' });
-    }
+    // --- Detalle: que unidades componen el conjunto
+    if (config.detalle) { cuadroDetalle(cont, filas, total); }
 
     // --- Desglose: por ministerio en la vista general, por repartición
     //     dentro de un ministerio.

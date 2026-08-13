@@ -568,6 +568,121 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
   -webkit-overflow-scrolling: touch;
 }
 
+/* ------------------------------------------------- detalle plegable */
+
+.detalle {
+  border: 1px solid var(--linea);
+  border-top: 0;
+  border-radius: 0 0 var(--radio) var(--radio);
+  overflow: hidden;
+}
+
+.detalle-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(29, 51, 67, .04);
+  border-bottom: 1px solid var(--linea);
+}
+
+.detalle-resumen {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--azul-claro);
+}
+
+.detalle-barra .chip-dim { padding: 5px 12px; font-size: 11.5px; }
+
+/* Una sola línea por marca: flecha, nombre, cantidad y porcentaje, con la
+   proporción pintada de fondo. */
+.marca-fila {
+  position: relative;
+  width: 100%;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--linea);
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  min-height: 44px;
+}
+
+.marca-fila:first-of-type { border-top: 0; }
+.marca-fila > span:not(.marca-relleno) { position: relative; }
+.marca-fila:hover { background: var(--menta-fondo); }
+.marca-fila:focus-visible { outline: 2px solid var(--amarillo); outline-offset: -2px; }
+
+/* Una sola serie, un solo color: la longitud es el dato, el tono no encoda nada */
+.marca-relleno {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(3, 92, 128, .13);
+  border-right: 2px solid var(--azul-claro);
+}
+
+.marca-flecha {
+  font-size: 17px;
+  line-height: 1;
+  color: var(--azul-claro);
+  transition: transform .15s;
+}
+
+.marca-fila[aria-expanded="true"] .marca-flecha { transform: rotate(90deg); }
+
+.marca-nombre {
+  font-size: 13.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marca-cant { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.marca-pct {
+  font-size: 12px;
+  color: var(--azul-claro);
+  font-variant-numeric: tabular-nums;
+  min-width: 46px;
+  text-align: right;
+}
+
+.marca-hijos { background: rgba(29, 51, 67, .03); }
+
+.hijo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 14px 8px 30px;
+  font-size: 13px;
+  border-top: 1px solid rgba(29, 51, 67, .07);
+}
+
+.hijo-modelo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hijo-anio { color: var(--azul-claro); font-variant-numeric: tabular-nums; }
+
+.hijo-cant {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 42px;
+  text-align: right;
+}
+
 /* ------------------------------------------------------------------ anillo */
 
 .grafico-cuerpo {
