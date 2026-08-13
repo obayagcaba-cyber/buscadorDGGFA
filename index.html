@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Buscador de Dominio — Flota Automotor DGGFA</title>
+<meta name="description" content="Consulta de unidades de la flota automotor del Gobierno de la Ciudad de Buenos Aires.">
+<meta name="theme-color" content="#1D3343">
+<meta name="robots" content="noindex, nofollow">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+
+<header class="encabezado">
+  <div class="contenedor">
+    <div class="marca-texto">
+      <span class="organismo">DG. Gestión de la Flota Automotor</span>
+      <span class="titulo">Buscador de dominio</span>
+    </div>
+    <img class="escudo" src="img/logo-ba-blanco.png" alt="Buenos Aires Ciudad">
+  </div>
+</header>
+
+<nav class="solapas">
+  <div class="contenedor" role="tablist">
+    <button class="solapa" role="tab" aria-selected="true" data-panel="panel-buscador">Buscar unidad</button>
+    <button class="solapa" role="tab" aria-selected="false" data-panel="panel-resumen">Resumen de flota</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- ------------------------------------------------------------ buscador -->
+  <section class="panel" id="panel-buscador" role="tabpanel">
+    <div class="contenedor">
+
+      <div class="bloque-busqueda">
+        <h2><span>Consultá una unidad</span></h2>
+        <p class="bajada">
+          Escribí el dominio y vas a ver la ficha completa: identificación, asignación,
+          servicios activos, estado administrativo y póliza. Datos al período
+          <b class="js-periodo">—</b>.
+        </p>
+        <div class="campo">
+          <input id="patente" type="text" inputmode="text" autocomplete="off"
+                 autocapitalize="characters" spellcheck="false"
+                 placeholder="AB766UL" aria-label="Dominio o patente">
+          <button id="limpiar" class="limpiar oculto" type="button" aria-label="Limpiar">&times;</button>
+          <ul id="sugerencias" class="sugerencias oculto" role="listbox"></ul>
+        </div>
+      </div>
+
+      <div id="aviso" class="aviso"></div>
+      <div id="ficha" class="ficha"></div>
+
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------- resumen -->
+  <section class="panel oculto" id="panel-resumen" role="tabpanel">
+    <div class="contenedor">
+      <h2 class="titulo-panel"><span>Resumen de flota</span></h2>
+      <p class="subtitulo-panel" id="actualizado">Detalle — DG. Gestión de la Flota Automotor</p>
+      <div id="resumen-cuerpo"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="pie">
+  <div class="contenedor">
+    <div class="firma">
+      <b>DG. Gestión de la Flota Automotor</b>
+      Subsecretaría de Gestión Operativa<br>
+      Período <span id="periodo">—</span> · Uso interno
+    </div>
+    <img class="escudo" src="img/logo-ba-blanco.png" alt="Buenos Aires Ciudad">
+  </div>
+</footer>
+
+<script src="datos.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

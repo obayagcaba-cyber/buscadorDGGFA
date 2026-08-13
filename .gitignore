@@ -1,0 +1,4 @@
+# La planilla de origen no se publica nunca.
+*.xlsx
+*.xlsm
+*.csv

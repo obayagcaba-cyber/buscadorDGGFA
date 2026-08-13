@@ -1,0 +1,569 @@
+/* ==========================================================================
+   Buscador DGGFA — hoja de estilos
+   Manual de Marca GCBA 2026 · Comunicaciones de Gestión
+   Mobile first: todo se diseña primero para el celular.
+   ========================================================================== */
+
+:root {
+  /* Paleta obligatoria */
+  --azul-oscuro: #1D3343;
+  --azul-claro: #035C80;
+  --blanco: #FCFCFC;
+  --amarillo: #FFCD02;
+
+  /* Extensión para dashboards de gestión */
+  --menta: #6FD8BE;
+  --menta-fondo: #C8EFE2;
+  --petroleo: #0F2B3A;
+  --petroleo-claro: #173F52;
+
+  /* Derivados de uso interno (solo transparencias de la paleta) */
+  --linea: rgba(29, 51, 67, .14);
+  --linea-clara: rgba(252, 252, 252, .18);
+  --sombra: 0 2px 10px rgba(29, 51, 67, .10);
+  --sombra-alta: 0 8px 28px rgba(29, 51, 67, .18);
+
+  --radio: 14px;
+  --radio-grande: 28px;
+  --ancho: 1080px;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: 'Archivo', Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--azul-oscuro);
+  background: var(--blanco);
+  /* respeta la barra de gestos del celular */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
+
+.contenedor {
+  width: 100%;
+  max-width: var(--ancho);
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.oculto { display: none !important; }
+
+/* ------------------------------------------------------------------ header */
+
+.encabezado {
+  background: var(--azul-oscuro);
+  color: var(--blanco);
+  border-bottom-right-radius: var(--radio-grande);
+  padding: 14px 0 12px;
+}
+
+.encabezado .contenedor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.marca-texto { min-width: 0; }
+
+.marca-texto .organismo {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .10em;
+  color: var(--menta);
+  display: block;
+}
+
+.marca-texto .titulo {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+/* Logo Escudo vertical, blanco sobre azul. No se deforma ni se recorta. */
+.escudo { height: 46px; width: auto; flex: 0 0 auto; }
+
+/* ------------------------------------------------------------- navegación */
+
+.solapas {
+  background: var(--azul-claro);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  box-shadow: var(--sombra);
+}
+
+.solapas .contenedor { display: flex; gap: 4px; }
+
+.solapa {
+  flex: 1 1 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--blanco);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 13px 8px 11px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: border-color .15s, font-weight .15s;
+}
+
+.solapa[aria-selected="true"] {
+  font-weight: 700;
+  border-bottom-color: var(--amarillo);
+}
+
+.solapa:focus-visible { outline: 2px solid var(--amarillo); outline-offset: -4px; }
+
+/* --------------------------------------------------------------- buscador */
+
+.panel { padding: 20px 0 56px; }
+
+.bloque-busqueda {
+  background: var(--azul-oscuro);
+  color: var(--blanco);
+  border-radius: var(--radio);
+  border-bottom-left-radius: var(--radio-grande);
+  padding: 20px 18px 22px;
+  box-shadow: var(--sombra);
+}
+
+.bloque-busqueda h2 {
+  font-size: 20px;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+/* Cajas azul claro detrás del titular, línea por línea */
+.bloque-busqueda h2 span {
+  background: var(--azul-claro);
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 3px;
+}
+
+.bajada {
+  font-size: 14px;
+  font-weight: 400;
+  margin: 10px 0 16px;
+  color: var(--blanco);
+  opacity: .92;
+}
+
+.bajada b { color: var(--amarillo); font-weight: 700; }
+
+.campo { position: relative; }
+
+#patente {
+  width: 100%;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--azul-oscuro);
+  background: var(--blanco);
+  border: 3px solid var(--blanco);
+  border-radius: var(--radio);
+  padding: 14px 46px 14px 16px;
+}
+
+#patente::placeholder {
+  color: rgba(29, 51, 67, .38);
+  letter-spacing: .08em;
+  font-weight: 500;
+}
+
+#patente:focus { outline: none; border-color: var(--amarillo); }
+
+.limpiar {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--azul-claro);
+  font-size: 26px;
+  line-height: 1;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+/* Sugerencias mientras se escribe */
+.sugerencias {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 6px;
+  background: var(--blanco);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra-alta);
+  max-height: 232px;
+  overflow-y: auto;
+}
+
+.sugerencias li {
+  padding: 11px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.sugerencias li:hover,
+.sugerencias li[aria-selected="true"] { background: var(--menta-fondo); }
+
+.sugerencias .pat { font-weight: 700; letter-spacing: .06em; }
+
+.sugerencias .det {
+  font-size: 12px;
+  color: var(--azul-claro);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ estado vacío */
+
+.aviso {
+  margin-top: 20px;
+  padding: 22px 18px;
+  border-radius: var(--radio);
+  background: var(--menta-fondo);
+  border-left: 5px solid var(--menta);
+  font-size: 15px;
+}
+
+.aviso.error { background: #FFF6D6; border-left-color: var(--amarillo); }
+.aviso b { font-weight: 700; letter-spacing: .06em; }
+
+/* ------------------------------------------------------------------ ficha */
+
+.ficha { margin-top: 22px; }
+
+.ficha-cabecera {
+  background: var(--petroleo);
+  color: var(--blanco);
+  border-radius: var(--radio);
+  border-bottom-right-radius: var(--radio-grande);
+  padding: 18px;
+}
+
+.ficha-cabecera .dominio {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: .10em;
+  color: var(--amarillo);
+  line-height: 1.05;
+}
+
+.ficha-cabecera .vehiculo {
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.ficha-cabecera .organismo-veh {
+  font-size: 13px;
+  opacity: .85;
+  margin-top: 6px;
+}
+
+.etiquetas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+.chip {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.chip.si { background: var(--menta); color: var(--azul-oscuro); }
+.chip.no { border: 1px solid var(--amarillo); color: var(--amarillo); }
+
+/* Secciones 01..06 */
+.seccion { margin-top: 18px; }
+
+.seccion > h3 {
+  background: var(--azul-claro);
+  color: var(--blanco);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding: 9px 14px;
+  border-radius: 10px 10px 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.seccion > h3 .num {
+  font-size: 11px;
+  background: var(--blanco);
+  color: var(--azul-claro);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.datos {
+  border: 1px solid var(--linea);
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+
+.dato {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--linea);
+}
+
+.dato:first-child { border-top: 0; }
+.dato:nth-child(odd) { background: rgba(29, 51, 67, .03); }
+
+.dato dt {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--azul-claro);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dato dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dato dd.vacio { font-weight: 400; color: rgba(29, 51, 67, .45); }
+.dato dd.si { color: var(--azul-oscuro); }
+.dato dd.no { font-weight: 400; color: rgba(29, 51, 67, .5); }
+
+/* Marca sobre un dato que no existe en el archivo de origen */
+.nota-dato {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--azul-claro);
+  margin-top: 2px;
+}
+
+/* ---------------------------------------------------------------- resumen */
+
+.titulo-panel {
+  font-size: 22px;
+  text-transform: uppercase;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+
+.titulo-panel span {
+  background: var(--azul-claro);
+  color: var(--blanco);
+  padding: 2px 9px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.subtitulo-panel { font-size: 13px; color: var(--azul-claro); margin: 8px 0 18px; }
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.kpi {
+  background: var(--azul-oscuro);
+  color: var(--blanco);
+  border-radius: var(--radio);
+  padding: 15px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 118px;
+}
+
+.kpi .cifra {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+
+.kpi .rotulo {
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  margin-top: 10px;
+  opacity: .92;
+}
+
+/* Dato protagonista: borde amarillo */
+.kpi.protagonista {
+  border: 2px solid var(--amarillo);
+  grid-column: 1 / -1;
+  min-height: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+.kpi.protagonista .cifra { font-size: 40px; color: var(--amarillo); }
+.kpi.protagonista .rotulo { margin-top: 0; font-size: 13px; }
+
+.kpi.menta { background: var(--menta-fondo); color: var(--azul-oscuro); }
+.kpi.menta .cifra { color: var(--azul-oscuro); }
+
+.subtitulo-tabla {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--azul-claro);
+  margin: 26px 0 9px;
+}
+
+.marco-tabla {
+  overflow-x: auto;
+  border-radius: var(--radio);
+  border: 1px solid var(--linea);
+  -webkit-overflow-scrolling: touch;
+}
+
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+
+thead th {
+  background: var(--azul-oscuro);
+  color: var(--blanco);
+  font-weight: 500;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  text-align: right;
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+
+thead th:first-child { text-align: left; }
+
+tbody td { padding: 10px 12px; text-align: right; border-top: 1px solid var(--linea); }
+
+tbody td:first-child {
+  text-align: left;
+  font-weight: 500;
+  min-width: 168px;
+}
+
+tbody tr:nth-child(even) { background: rgba(29, 51, 67, .03); }
+
+tfoot td {
+  background: var(--azul-oscuro);
+  color: var(--amarillo);
+  font-weight: 700;
+  padding: 11px 12px;
+  text-align: right;
+}
+
+tfoot td:first-child { text-align: left; color: var(--blanco); }
+
+.nota {
+  font-size: 12px;
+  color: var(--azul-claro);
+  margin-top: 9px;
+  line-height: 1.4;
+}
+
+/* ------------------------------------------------------------------ footer */
+
+.pie {
+  background: var(--azul-oscuro);
+  color: var(--blanco);
+  border-top-left-radius: var(--radio-grande);
+  padding: 24px 0 28px;
+  margin-top: 20px;
+}
+
+.pie .contenedor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.pie .firma { font-size: 12px; line-height: 1.5; opacity: .9; }
+.pie .firma b { display: block; font-size: 13px; opacity: 1; }
+.pie .escudo { height: 54px; }
+
+/* ------------------------------------------------------- escritorio ≥ 720px */
+
+@media (min-width: 720px) {
+  body { font-size: 16.5px; }
+
+  .contenedor { padding: 0 28px; }
+
+  .encabezado { padding: 18px 0 16px; }
+  .marca-texto .titulo { font-size: 25px; }
+  .escudo { height: 58px; }
+
+  .solapas .contenedor { gap: 8px; }
+  .solapa { flex: 0 0 auto; padding: 15px 26px 13px; font-size: 15px; }
+
+  .panel { padding: 30px 0 64px; }
+
+  .bloque-busqueda { padding: 30px 28px; }
+  .bloque-busqueda h2 { font-size: 27px; }
+  .bajada { font-size: 15px; max-width: 62ch; }
+  #patente { font-size: 27px; padding: 16px 52px 16px 20px; }
+
+  .ficha-cabecera { padding: 26px 28px; }
+  .ficha-cabecera .dominio { font-size: 46px; }
+  .ficha-cabecera .vehiculo { font-size: 19px; }
+
+  /* dos columnas de datos, más denso en pantalla grande */
+  .datos { display: grid; grid-template-columns: 1fr 1fr; }
+  .dato { border-top: 1px solid var(--linea); }
+  .dato:nth-child(odd) { background: transparent; }
+  .dato:nth-child(4n+1), .dato:nth-child(4n+2) { background: rgba(29, 51, 67, .03); }
+  .dato:nth-child(-n+2) { border-top: 0; }
+
+  .kpis { grid-template-columns: repeat(4, 1fr); }
+  .kpi.protagonista { grid-column: span 4; }
+  .titulo-panel { font-size: 30px; }
+  table { font-size: 14px; }
+}
+
+@media (min-width: 980px) {
+  .kpi.protagonista { grid-column: span 1; flex-direction: column; align-items: flex-start; min-height: 118px; }
+  .kpi.protagonista .cifra { font-size: 34px; }
+  .kpi.protagonista .rotulo { margin-top: 10px; font-size: 11.5px; }
+}
+
+@media print {
+  .solapas, .bloque-busqueda, .pie { display: none; }
+  body { font-size: 11pt; }
+}
