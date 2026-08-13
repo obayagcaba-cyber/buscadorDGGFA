@@ -634,7 +634,8 @@
   var TRAMOS_ANTIGUEDAD = [
     'Hasta 3 años (' + ANIO_BASE + ' a ' + (ANIO_BASE - 2) + ')',
     'De 3 a 5 años (' + (ANIO_BASE - 3) + ' a ' + (ANIO_BASE - 5) + ')',
-    'Más de 5 años (' + (ANIO_BASE - 6) + ' inclusive)'
+    'De 6 a 10 años (' + (ANIO_BASE - 6) + ' a ' + (ANIO_BASE - 10) + ')',
+    'Más de 10 años (' + (ANIO_BASE - 11) + ' inclusive)'
   ];
 
   // Devuelve vacío cuando no hay año, para que quede fuera del anillo junto
@@ -644,7 +645,8 @@
     if (!a) { return ''; }
     if (a >= ANIO_BASE - 2) { return TRAMOS_ANTIGUEDAD[0]; }
     if (a >= ANIO_BASE - 5) { return TRAMOS_ANTIGUEDAD[1]; }
-    return TRAMOS_ANTIGUEDAD[2];
+    if (a >= ANIO_BASE - 10) { return TRAMOS_ANTIGUEDAD[2]; }
+    return TRAMOS_ANTIGUEDAD[3];
   }
 
   // dim: {clave} para leer una columna, o {fn} para calcular la categoría.
